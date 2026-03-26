@@ -1,11 +1,14 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
-import { UsersService } from './modules/users/users.service';
-import { AutomationService } from './modules/automation/automation.service';
+import { SeedService } from './bootstrap/seed.service';
 
 async function bootstrap() {
+  const logger = new Logger('Bootstrap');
+  
+  logger.log('🚀 Starting CRM Application...');
+  
   const app = await NestFactory.create(AppModule);
   
   const configService = app.get(ConfigService);
@@ -31,16 +34,16 @@ async function bootstrap() {
     }),
   );
 
-  // Bootstrap admin user and default automation rules
-  const usersService = app.get(UsersService);
-  const automationService = app.get(AutomationService);
-  
-  await usersService.bootstrapAdmin();
-  await automationService.bootstrapDefaultRules();
+  // Run seed on startup (creates admin user, automation rules, templates)
+  const seedService = app.get(SeedService);
+  await seedService.seedAll();
 
   const port = configService.get('PORT') || 8001;
   await app.listen(port, '0.0.0.0');
-  console.log(`🚀 CRM Backend running on http://0.0.0.0:${port}`);
+  
+  logger.log(`✅ CRM Backend running on http://0.0.0.0:${port}`);
+  logger.log(`📚 API available at http://0.0.0.0:${port}/api`);
+  logger.log(`🏥 Health check: http://0.0.0.0:${port}/api/system/health`);
 }
 
 bootstrap();

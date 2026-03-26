@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { BootstrapModule } from './bootstrap/bootstrap.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { RolesModule } from './modules/roles/roles.module';
@@ -37,6 +38,7 @@ import { ExportModule } from './modules/export/export.module';
       }),
       inject: [ConfigService],
     }),
+    BootstrapModule,
     QueueModule,
     AuthModule,
     UsersModule,
