@@ -5,7 +5,8 @@ Full CRM/Admin platform для автобізнесу з call-center опера�
 
 ## Зафіксований стек
 - **Backend**: NestJS + TypeScript + MongoDB
-- **Frontend**: React + Tailwind CSS
+- **Frontend**: React + Tailwind CSS + Framer Motion
+- **UI/UX**: Premium Dark Theme (fomo.cx inspired)
 - **Cache/Queues**: Redis + Bull (6 черг)
 - **SMS**: Provider abstraction layer (Twilio + Viber placeholder)
 - **File Storage**: Local + S3 abstraction
@@ -51,82 +52,83 @@ Full CRM/Admin platform для автобізнесу з call-center опера�
 - Storage Providers: Local + S3 abstraction
 - Access Control: Admin/Manager/Finance
 
-### ✅ Master Dashboard v2 (Mar 2026 - NEW)
+### ✅ Master Dashboard v2 (Mar 2026)
 
 **Architecture - Control Layer:**
-```
-modules/
-  dashboard/
-    controllers/dashboard.controller.ts
-    services/
-      dashboard.service.ts          # Orchestrator
-      sla-dashboard.service.ts      # SLA metrics
-      workload-dashboard.service.ts # Manager workload
-      leads-dashboard.service.ts    # Lead flow
-      callbacks-dashboard.service.ts # Call center
-      deposits-dashboard.service.ts # Financial
-      documents-dashboard.service.ts # Documents
-      routing-dashboard.service.ts  # Routing health
-      system-health-dashboard.service.ts # System
-    dto/dashboard-query.dto.ts
-    interfaces/dashboard-response.interface.ts
-    constants/dashboard-cache.constants.ts
-```
-
-**API:**
-- GET /api/dashboard/master - Головний агрегований endpoint
-- GET /api/dashboard/master?period=day|week|month - Фільтрація по періоду
-- GET /api/dashboard/kpi-summary - Короткий огляд KPI
-
-**Dashboard Sections:**
-1. **SLA Control** - overdueLeads, overdueTasks, overdueCallbacks, avgFirstResponseMinutes, missedSlaRate
-2. **Workload Heatmap** - Manager workload scores, status (ok/busy/overloaded/idle)
-3. **Lead Flow** - new, inProgress, converted, lost, unassigned
-4. **Callback Control** - missedCalls, noAnswerLeads, followUpsDue, smsTriggered
-5. **Deposits Control** - pendingDeposits, depositsWithoutProof, pendingVerification
-6. **Documents Control** - pendingVerification, rejectedCount, uploadedToday
-7. **Routing Health** - fallbackAssignments, reassignmentRate, unassignedLeads
-8. **System Health** - failedJobs, queueBacklog, smsFailures, systemStatus
-
-**Features:**
+- 8 specialized dashboard services
+- Aggregated endpoint GET /api/dashboard/master
 - Redis caching (30 sec TTL)
 - Period filtering (day/week/month)
-- Real-time workload calculation
-- Critical alerts detection
-- System health monitoring
 
-**UI Components:**
-- KPI Summary Row (6 critical metrics)
-- Period Selector
-- Critical Alerts Banner
-- Workload Heatmap with status indicators
-- 6 data sections with metrics
+**Dashboard Sections:**
+1. SLA Control - overdueLeads, overdueTasks, avgFirstResponseMinutes
+2. Workload Heatmap - Manager workload scores, status
+3. Lead Flow - new, inProgress, converted, lost
+4. Callback Control - missedCalls, noAnswerLeads, followUpsDue
+5. Deposits Control - pendingDeposits, depositsWithoutProof
+6. Documents Control - pendingVerification, rejectedCount
+7. Routing Health - fallbackAssignments, reassignmentRate
+8. System Health - failedJobs, queueBacklog, systemStatus
+
+### ✅ Premium Dark Theme UI/UX (Mar 2026 - NEW)
+
+**Design System:**
+- **Color Palette**: 
+  - Background: #0A0B0F
+  - Surface: #13151A
+  - Primary: #4F46E5 (Indigo)
+  - Text: #F8FAFC / #94A3B8 / #64748B
+  - Accents: Emerald, Amber, Red, Violet
+  
+- **Typography**:
+  - Headings: Outfit (medium weight)
+  - Body: Plus Jakarta Sans
+  
+- **Components**:
+  - Cards: rounded-2xl, soft borders (border-white/5), glow effects
+  - Buttons: rounded-xl, gradient backgrounds, hover shadows
+  - Inputs: rounded-xl, transparent backgrounds, focus rings
+  - Dropdowns: backdrop blur, soft shadows
+  - Tables: no vertical dividers, horizontal borders white/5
+  - Badges: pill-shaped with colored backgrounds
+  
+- **Motion**:
+  - Framer Motion for page transitions
+  - Staggered children animations
+  - Hover scale/translate effects
+  - Smooth 300ms transitions
+
+**Implemented Pages:**
+- Login (gradient background, premium card)
+- Dashboard (KPI cards with glow, all 8 sections)
+- Leads (premium table, filters, create/edit modal)
+- Layout (sidebar with active states)
 
 ## Test Results (Mar 2026)
-- Backend Lead Routing: 100%
-- Backend Files/Documents: 100%
 - Backend Master Dashboard v2: 100%
-- Frontend Master Dashboard UI: 95%
-- Integration tests: 100%
+- Frontend Premium UI: 100%
+- UI Theme: 100%
+- Functionality: 100%
 
 ## Backlog
 
 ### P0 - Critical
-- [x] ~~Master Dashboard v2 - Control Layer~~ ✅ DONE
+- [x] ~~Master Dashboard v2~~ ✅ DONE
+- [x] ~~Premium Dark Theme UI~~ ✅ DONE
 - [ ] Configure Twilio credentials
 - [ ] Configure S3 for production
 
 ### P1 - High Priority
 - [ ] UI: Document verification panel
 - [ ] UI: File viewer/uploader components
+- [ ] Update remaining pages (Customers, Deals, Deposits, Tasks, Staff, Settings)
 - [ ] Deposit integration (auto-create deposit_proof document)
-- [ ] SLA overdue auto-reassignment cron job
 
 ### P2 - Medium Priority
 - [ ] Reviews module (Google reviews, site reviews)
 - [ ] Client Cabinet (client sees own documents)
+- [ ] WebSocket real-time dashboard updates
 - [ ] Viber Business integration
-- [ ] Rate limiting for SMS
 
 ### P3 - Nice to Have
 - [ ] AI Lead Scoring
@@ -138,7 +140,7 @@ modules/
 2026-03-26
 
 ## Наступні дії
-1. **Deposit Auto-Flow** - автоматичне створення deposit_proof при завантаженні
+1. Оновити UI для інших сторінок (Customers, Deals, Deposits, Tasks, Staff, Settings)
 2. UI components для файлів та документів
-3. Cron jobs для SLA monitoring
+3. WebSocket для real-time оновлень dashboard
 4. Reviews module
