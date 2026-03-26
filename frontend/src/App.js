@@ -11,6 +11,7 @@ import Deposits from './pages/Deposits';
 import Tasks from './pages/Tasks';
 import Staff from './pages/Staff';
 import Settings from './pages/Settings';
+import Documents from './pages/Documents';
 import Layout from './components/Layout';
 import './App.css';
 
@@ -110,6 +111,7 @@ function App() {
             <Route path="deposits" element={<Deposits />} />
             <Route path="tasks" element={<Tasks />} />
             <Route path="staff" element={<Staff />} />
+            <Route path="documents" element={<Documents />} />
             <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>

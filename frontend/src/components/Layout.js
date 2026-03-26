@@ -11,7 +11,8 @@ import {
   UsersThree, 
   Gear, 
   SignOut,
-  Bell
+  Bell,
+  FileText
 } from '@phosphor-icons/react';
 
 const Layout = () => {
@@ -30,6 +31,7 @@ const Layout = () => {
     { path: '/deals', icon: Handshake, label: 'Угоди' },
     { path: '/deposits', icon: Wallet, label: 'Депозити' },
     { path: '/tasks', icon: CheckSquare, label: 'Завдання' },
+    { path: '/documents', icon: FileText, label: 'Документи' },
     { path: '/staff', icon: UsersThree, label: 'Команда' },
     { path: '/settings', icon: Gear, label: 'Налаштування' },
   ];
