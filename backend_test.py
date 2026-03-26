@@ -7,7 +7,7 @@ from datetime import datetime
 import uuid
 
 class VehiclesModuleTester:
-    def __init__(self, base_url="https://a11y-workspace.preview.emergentagent.com"):
+    def __init__(self, base_url="https://a11y-project.preview.emergentagent.com"):
         self.base_url = base_url
         self.token = None
         self.tests_run = 0
@@ -1105,6 +1105,20 @@ class VehiclesModuleTester:
                 print(f"   ❌ Circuit breaker reset failed")
         
         return False
+
+    def generate_test_vin(self):
+        """Generate a valid test VIN"""
+        # Generate a simple test VIN that passes basic validation
+        import random
+        import string
+        
+        # VIN format: 17 characters, no I, O, Q
+        valid_chars = string.ascii_uppercase + string.digits
+        valid_chars = valid_chars.replace('I', '').replace('O', '').replace('Q', '')
+        
+        # Generate 17 character VIN
+        vin = ''.join(random.choice(valid_chars) for _ in range(17))
+        return vin
 
 def main():
     print("🚀 Starting Vehicles Module Testing...")

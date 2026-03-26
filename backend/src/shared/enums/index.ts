@@ -98,6 +98,8 @@ export enum LeadSource {
   COLD_CALL = 'cold_call',
   ADVERTISEMENT = 'advertisement',
   PARTNER = 'partner',
+  VEHICLE_COPART = 'vehicle_copart',
+  VEHICLE_IAAI = 'vehicle_iaai',
   OTHER = 'other',
 }
 

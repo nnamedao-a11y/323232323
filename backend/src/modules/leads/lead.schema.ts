@@ -14,8 +14,8 @@ export class Lead extends Document {
   @Prop({ required: true })
   lastName: string;
 
-  @Prop({ required: true })
-  email: string;
+  @Prop()
+  email?: string;
 
   @Prop()
   phone?: string;

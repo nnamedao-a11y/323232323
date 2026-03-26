@@ -24,7 +24,7 @@ import { Roles } from '../../auth/decorators/roles.decorator';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Vehicle } from '../schemas/vehicle.schema';
 import { Lead } from '../../leads/lead.schema';
-import { UserRole } from '../../../shared/enums';
+import { UserRole, LeadSource } from '../../../shared/enums';
 import { VehicleStatus } from '../enums/vehicle.enum';
 import { generateId } from '../../../shared/utils';
 
@@ -259,13 +259,14 @@ export class VehiclesController {
 
     // Create lead
     const leadId = generateId();
+    const leadSource = vehicle.source === 'copart' ? LeadSource.VEHICLE_COPART : LeadSource.VEHICLE_IAAI;
     const lead = await this.leadModel.create({
       id: leadId,
       firstName: dto.customerName || 'Клієнт',
       lastName: `(${vehicle.vin})`,
-      email: dto.customerEmail,
+      email: dto.customerEmail || undefined,
       phone: dto.customerPhone,
-      source: `vehicle_${vehicle.source}`,
+      source: leadSource,
       status: 'new',
       notes: dto.notes || `Авто: ${vehicle.title}\nVIN: ${vehicle.vin}\nЦіна: ${vehicle.price} ${vehicle.currency || 'USD'}`,
       assignedTo: req.user?.id,
