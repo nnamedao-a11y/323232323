@@ -29,6 +29,7 @@ import { FilesModule } from './modules/files/files.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { ActivityModule } from './modules/activity/activity.module';
 import { IngestionModule } from './modules/ingestion/ingestion.module';
+import { IngestionAdminModule } from './modules/ingestion/admin/ingestion-admin.module';
 
 @Module({
   imports: [
@@ -72,6 +73,7 @@ import { IngestionModule } from './modules/ingestion/ingestion.module';
     DocumentsModule,
     ActivityModule,
     IngestionModule,
+    IngestionAdminModule,
   ],
 })
 export class AppModule {}

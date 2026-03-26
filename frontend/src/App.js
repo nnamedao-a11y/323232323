@@ -13,6 +13,10 @@ import Staff from './pages/Staff';
 import Settings from './pages/Settings';
 import Documents from './pages/Documents';
 import ProxySettings from './pages/ProxySettings';
+import ParserControl from './pages/ParserControl';
+import ProxyManager from './pages/ProxyManager';
+import ParserLogs from './pages/ParserLogs';
+import ParserSettings from './pages/ParserSettings';
 import Layout from './components/Layout';
 import './App.css';
 
@@ -115,6 +119,10 @@ function App() {
             <Route path="documents" element={<Documents />} />
             <Route path="settings" element={<Settings />} />
             <Route path="proxy-settings" element={<ProxySettings />} />
+            <Route path="parser" element={<ParserControl />} />
+            <Route path="parser/proxies" element={<ProxyManager />} />
+            <Route path="parser/logs" element={<ParserLogs />} />
+            <Route path="parser/settings" element={<ParserSettings />} />
           </Route>
         </Routes>
       </AuthProvider>

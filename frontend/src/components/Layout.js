@@ -13,7 +13,8 @@ import {
   SignOut,
   Bell,
   FileText,
-  Globe
+  Globe,
+  Database
 } from '@phosphor-icons/react';
 
 const Layout = () => {
@@ -38,9 +39,14 @@ const Layout = () => {
     { path: '/settings', icon: Gear, label: 'Налаштування' },
   ];
 
-  // Add proxy settings for master_admin only
+  // Add parser control for master_admin and moderator
+  const parserNavItem = { path: '/parser', icon: Database, label: 'Парсер' };
+  
+  // Add extra items for master_admin only
   const navItems = user?.role === 'master_admin' 
-    ? [...baseNavItems, { path: '/proxy-settings', icon: Globe, label: 'Проксі' }]
+    ? [...baseNavItems, parserNavItem, { path: '/proxy-settings', icon: Globe, label: 'Проксі (old)' }]
+    : user?.role === 'moderator'
+    ? [...baseNavItems, parserNavItem]
     : baseNavItems;
 
   const roleLabels = {
