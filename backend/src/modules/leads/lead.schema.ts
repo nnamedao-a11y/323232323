@@ -44,8 +44,15 @@ export class Lead extends Document {
   @Prop({ type: [String], default: [] })
   tags: string[];
 
+  // === CONTACT TRACKING ===
   @Prop({ type: Number, default: 0 })
   callAttempts: number;
+
+  @Prop({ type: Number, default: 0 })
+  smsAttempts: number;
+
+  @Prop({ type: Number, default: 0 })
+  emailAttempts: number;
 
   @Prop()
   lastContactAt?: Date;
@@ -53,6 +60,17 @@ export class Lead extends Document {
   @Prop()
   nextFollowUpAt?: Date;
 
+  // Escalation: 0=new, 1=1st attempt, 2=2nd attempt, 3=SMS sent, 4=cold/unreachable
+  @Prop({ type: Number, default: 0, index: true })
+  escalationLevel: number;
+
+  @Prop()
+  lastSmsDeliveredAt?: Date;
+
+  @Prop()
+  lastEmailDeliveredAt?: Date;
+
+  // === CONVERSION ===
   @Prop()
   convertedToCustomerId?: string;
 

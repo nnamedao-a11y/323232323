@@ -15,7 +15,7 @@ import {
 } from './sms.provider.interface';
 import { TwilioSMSProvider } from './twilio.provider';
 import { ViberBusinessProvider } from './viber.provider';
-import { CommunicationLog } from '../schemas/communication-log.schema';
+import { Message } from '../schemas/message.schema';
 import { CommunicationChannel } from '../../../shared/enums';
 import { generateId } from '../../../shared/utils';
 
@@ -36,7 +36,7 @@ export class SMSProviderManager implements OnModuleInit {
     private configService: ConfigService,
     private twilioProvider: TwilioSMSProvider,
     private viberProvider: ViberBusinessProvider,
-    @InjectModel(CommunicationLog.name) private logModel: Model<CommunicationLog>,
+    @InjectModel(Message.name) private messageModel: Model<Message>,
   ) {}
 
   async onModuleInit() {
@@ -186,30 +186,40 @@ export class SMSProviderManager implements OnModuleInit {
     return /^\+[1-9]\d{7,14}$/.test(phoneNumber);
   }
 
+  /**
+   * Log message to new Message schema with delivery tracking support
+   */
   private async logCommunication(
     request: SendSMSRequest,
     response: SendSMSResponse,
     attempts: ProviderAttempt[],
   ): Promise<void> {
     try {
-      const log = new this.logModel({
+      const message = new this.messageModel({
         id: generateId(),
+        leadId: request.metadata?.leadId,
+        customerId: request.metadata?.customerId,
         channel: CommunicationChannel.SMS,
-        recipientId: request.metadata?.leadId || request.metadata?.customerId || 'unknown',
-        recipientPhone: request.to,
-        subject: 'SMS',
+        provider: response.providerName || 'twilio',
+        direction: 'outbound',
+        to: request.to,
         content: request.message,
         templateId: request.templateId,
+        providerMessageId: response.messageId,
+        providerPayload: { attempts },
         status: response.success ? 'sent' : 'failed',
-        externalId: response.messageId,
-        sentAt: response.success ? new Date() : undefined,
+        errorCode: response.errorCode,
         errorMessage: response.errorMessage,
+        sentAt: response.success ? new Date() : undefined,
+        failedAt: !response.success ? new Date() : undefined,
         sentBy: 'system',
+        metadata: request.metadata,
       });
 
-      await log.save();
+      await message.save();
+      this.logger.log(`Message logged: ${message.id} (provider: ${response.providerName})`);
     } catch (error) {
-      this.logger.error(`Failed to log SMS communication: ${error.message}`);
+      this.logger.error(`Failed to log SMS message: ${error.message}`);
     }
   }
 }

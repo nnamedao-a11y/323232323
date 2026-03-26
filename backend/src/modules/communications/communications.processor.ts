@@ -3,6 +3,7 @@ import { Logger } from '@nestjs/common';
 import { Job } from 'bull';
 import { CommunicationsService } from './communications.service';
 import { SMSProviderManager } from './providers/sms-provider.manager';
+import { TimelineService } from './timeline/timeline.service';
 import { CommunicationChannel } from '../../shared/enums';
 
 @Processor('communications')
@@ -12,6 +13,7 @@ export class CommunicationsProcessor {
   constructor(
     private communicationsService: CommunicationsService,
     private smsProviderManager: SMSProviderManager,
+    private timelineService: TimelineService,
   ) {}
 
   @Process('send')
@@ -36,6 +38,19 @@ export class CommunicationsProcessor {
         
         if (result.success) {
           await this.communicationsService.updateStatus(logId, 'sent', result.id);
+          
+          // Add to timeline
+          if (metadata?.leadId) {
+            await this.timelineService.addEvent({
+              leadId: metadata.leadId,
+              type: 'email_sent',
+              channel: 'email',
+              title: 'Email відправлено',
+              meta: { email: recipient },
+              isAutomated: true,
+            });
+          }
+          
           this.logger.log(`Email sent successfully: ${logId}`);
         } else {
           await this.communicationsService.updateStatus(logId, 'failed', undefined, result.error);
@@ -55,6 +70,20 @@ export class CommunicationsProcessor {
         
         if (result.success) {
           await this.communicationsService.updateStatus(logId, 'sent', result.messageId);
+          
+          // Add to timeline (sent status - delivered will come via webhook)
+          if (metadata?.leadId) {
+            await this.timelineService.addEvent({
+              leadId: metadata.leadId,
+              type: 'sms_sent',
+              channel: 'sms',
+              title: 'SMS відправлено',
+              description: `Очікується підтвердження доставки`,
+              meta: { phone: recipient },
+              isAutomated: true,
+            });
+          }
+          
           this.logger.log(`SMS sent successfully via ${result.providerName}: ${logId}`);
         } else {
           await this.communicationsService.updateStatus(logId, 'failed', undefined, result.errorMessage);
@@ -72,6 +101,32 @@ export class CommunicationsProcessor {
       this.logger.error(`Message processing error: ${error.message}`);
       await this.communicationsService.updateStatus(logId, 'failed', undefined, error.message);
       throw error;
+    }
+  }
+
+  /**
+   * Retry failed SMS
+   */
+  @Process('retry-sms')
+  async handleRetrySms(job: Job<{
+    messageId: string;
+    to: string;
+    content: string;
+    retryCount: number;
+  }>) {
+    const { messageId, to, content, retryCount } = job.data;
+    this.logger.log(`Retrying SMS ${messageId} (attempt ${retryCount})`);
+
+    const result = await this.smsProviderManager.send({
+      to,
+      message: content,
+      metadata: { attemptNumber: retryCount },
+    });
+
+    if (result.success) {
+      this.logger.log(`SMS retry successful: ${messageId}`);
+    } else {
+      this.logger.error(`SMS retry failed: ${messageId} - ${result.errorMessage}`);
     }
   }
 }
