@@ -42,12 +42,30 @@ const AuthProvider = ({ children }) => {
     }
   }, [token]);
 
+  // Setup axios interceptor for auth errors
+  useEffect(() => {
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        // Only logout on explicit 401 from auth endpoints
+        if (error.response?.status === 401 && error.config?.url?.includes('/api/auth/me')) {
+          logout();
+        }
+        return Promise.reject(error);
+      }
+    );
+    return () => axios.interceptors.response.eject(interceptor);
+  }, []);
+
   const fetchUser = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/auth/me`);
       setUser(res.data);
     } catch (err) {
-      logout();
+      // Only logout if it's an auth error
+      if (err.response?.status === 401) {
+        logout();
+      }
     } finally {
       setLoading(false);
     }

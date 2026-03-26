@@ -10,13 +10,14 @@ Parser Control Center для CRM автобізнесу (BIBI Cars). Створ�
 - Перегляд логів та помилок
 - Налаштування конфігурації
 - Система алертів
+- Vehicles UI page (база транспорту)
 
 ## Architecture
 
 ### Tech Stack
 - **Backend:** NestJS + TypeScript + MongoDB
 - **Frontend:** React + Tailwind CSS + Phosphor Icons
-- **Database:** MongoDB (парсер стейт, логи, налаштування, алерти)
+- **Database:** MongoDB (парсер стейт, логи, налаштування, алерти, vehicles)
 
 ### User Roles
 1. **MASTER_ADMIN** - повний контроль системи та парсерів
@@ -32,13 +33,20 @@ Parser Control Center для CRM автобізнесу (BIBI Cars). Створ�
 - [x] Settings Panel (конфігурація)
 - [x] Alerts System (сповіщення)
 
+### Vehicles Module
+- [x] Vehicles List with filters
+- [x] Vehicle Cards with images, prices, VIN
+- [x] Vehicle Details Modal
+- [x] Create Lead from Vehicle
+- [x] Statistics Dashboard
+
 ## What's Been Implemented
 
 ### Date: 2026-03-26
 
 #### Backend (NestJS)
-**New Module: /app/backend/src/modules/ingestion/admin/**
 
+**Module: /app/backend/src/modules/ingestion/admin/**
 1. **Schemas:**
    - `ParserState` - стан парсера (status, lastRunAt, stats)
    - `ParserLog` - логи запусків та помилок
@@ -65,18 +73,54 @@ Parser Control Center для CRM автобізнесу (BIBI Cars). Створ�
    - Alerts: list, resolve
    - Proxies: CRUD + test
 
-#### Frontend (React)
-**New Pages:**
+**Module: /app/backend/src/modules/ingestion/**
+- `VehiclesController` - vehicles API endpoints
+- `VehicleService` - CRUD operations for vehicles
+- `Vehicle Schema` - normalized vehicle model
 
+**Vehicles API Endpoints:**
+- GET /api/vehicles - list with pagination & filters
+- GET /api/vehicles/stats - statistics
+- GET /api/vehicles/makes - makes list
+- GET /api/vehicles/:id - vehicle details
+- POST /api/vehicles/:id/create-lead - create lead from vehicle ✅ FIXED
+
+#### Frontend (React)
+
+**Parser Control Pages:**
 1. **ParserControl.js** (`/parser`)
 2. **ProxyManager.js** (`/parser/proxies`)
 3. **ParserLogs.js** (`/parser/logs`)
 4. **ParserSettings.js** (`/parser/settings`)
 
+**Vehicles Pages:**
+5. **Vehicles.js** (`/vehicles`) - Full vehicle management UI
+
+## Bug Fixes
+
+### Date: 2026-03-26
+**Issue:** POST /api/vehicles/:id/create-lead returning 500 error
+
+**Root Cause:**
+1. `LeadSource` enum missing `VEHICLE_COPART` and `VEHICLE_IAAI` values
+2. `email` field in Lead schema was required but passed as optional
+3. Test vehicles missing `externalId` field
+
+**Fix Applied:**
+1. Added `VEHICLE_COPART = 'vehicle_copart'` and `VEHICLE_IAAI = 'vehicle_iaai'` to LeadSource enum
+2. Made email optional in Lead schema: `email?: string`
+3. Updated vehicles controller to use proper enum values
+4. Added externalId to test vehicles
+
+**Files Modified:**
+- `/app/backend/src/shared/enums/index.ts`
+- `/app/backend/src/modules/leads/lead.schema.ts`
+- `/app/backend/src/modules/ingestion/controllers/vehicles.controller.ts`
+
 ## Test Results
-- Backend: 93.8% passed (15/16 tests)
-- Frontend: 100% passed
-- Note: Parser run timeout expected without real Copart/IAAI credentials
+- Backend: 100% passed
+- Frontend: 80% (session management improvement applied)
+- Create Lead: ✅ Working
 
 ## Prioritized Backlog
 
@@ -85,12 +129,14 @@ Parser Control Center для CRM автобізнесу (BIBI Cars). Створ�
 - [x] Health Monitoring
 - [x] Proxy Management
 - [x] Settings Management
+- [x] Vehicles UI page
+- [x] Create Lead from Vehicle
 - [ ] Real Copart/IAAI API credentials
 
 ### P1 - High Priority
 - [ ] WebSocket real-time dashboard updates
-- [ ] Vehicles UI page (база транспорту)
 - [ ] Self-healing automation
+- [ ] VIN Search public page
 
 ### P2 - Medium
 - [ ] Public Website з каталогом авто
@@ -100,4 +146,5 @@ Parser Control Center для CRM автобізнесу (BIBI Cars). Створ�
 ## Next Tasks
 1. Налаштувати реальні Copart/IAAI API credentials
 2. Додати WebSocket для live updates на дашборді
-3. Реалізувати Vehicles UI page
+3. Реалізувати VIN Search для SEO та конверсії
+4. Public site з каталогом авто для продажів
