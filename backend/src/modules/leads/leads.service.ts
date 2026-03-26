@@ -8,15 +8,18 @@ import { LeadStatus, AutomationTrigger, ContactStatus } from '../../shared/enums
 import { LEAD_STATUS_TRANSITIONS } from '../../shared/constants/permissions';
 import { PaginatedResult } from '../../shared/dto/pagination.dto';
 import { AutomationService } from '../automation/automation.service';
+import { ActivityService } from '../activity/services/activity.service';
+import { ActivityAction, ActivityEntityType } from '../activity/enums/activity-action.enum';
 
 @Injectable()
 export class LeadsService {
   constructor(
     @InjectModel(Lead.name) private leadModel: Model<Lead>,
     @Inject(forwardRef(() => AutomationService)) private automationService: AutomationService,
+    private activityService: ActivityService,
   ) {}
 
-  async create(createLeadDto: CreateLeadDto, userId: string): Promise<any> {
+  async create(createLeadDto: CreateLeadDto, userId: string, userRole?: string, userName?: string): Promise<any> {
     const lead = new this.leadModel({
       id: generateId(),
       ...createLeadDto,
@@ -25,6 +28,17 @@ export class LeadsService {
     });
     const saved = await lead.save();
     const result = toObjectResponse(saved);
+
+    // Activity log
+    this.activityService.logAsync({
+      userId,
+      userRole: userRole || 'unknown',
+      userName,
+      action: ActivityAction.LEAD_CREATED,
+      entityType: ActivityEntityType.LEAD,
+      entityId: result.id,
+      meta: { source: createLeadDto.source },
+    });
 
     // Тригеримо автоматизацію
     await this.automationService.emit({
@@ -75,15 +89,13 @@ export class LeadsService {
     return lead ? toObjectResponse(lead) : null;
   }
 
-  async update(id: string, updateLeadDto: UpdateLeadDto, userId: string): Promise<any> {
+  async update(id: string, updateLeadDto: UpdateLeadDto, userId: string, userRole?: string, userName?: string): Promise<any> {
     // Validate status transition
-    if (updateLeadDto.status) {
-      const current = await this.leadModel.findOne({ id, isDeleted: false });
-      if (current) {
-        const allowedTransitions = LEAD_STATUS_TRANSITIONS[current.status] || [];
-        if (!allowedTransitions.includes(updateLeadDto.status)) {
-          throw new BadRequestException(`Cannot transition from ${current.status} to ${updateLeadDto.status}`);
-        }
+    const current = await this.leadModel.findOne({ id, isDeleted: false });
+    if (updateLeadDto.status && current) {
+      const allowedTransitions = LEAD_STATUS_TRANSITIONS[current.status] || [];
+      if (!allowedTransitions.includes(updateLeadDto.status)) {
+        throw new BadRequestException(`Cannot transition from ${current.status} to ${updateLeadDto.status}`);
       }
     }
 
@@ -92,6 +104,31 @@ export class LeadsService {
       { $set: { ...updateLeadDto, updatedBy: userId } },
       { new: true },
     );
+
+    if (lead) {
+      // Activity log
+      if (updateLeadDto.status && current?.status !== updateLeadDto.status) {
+        this.activityService.logAsync({
+          userId,
+          userRole: userRole || 'unknown',
+          userName,
+          action: ActivityAction.LEAD_STATUS_CHANGED,
+          entityType: ActivityEntityType.LEAD,
+          entityId: id,
+          meta: { fromStatus: current?.status, toStatus: updateLeadDto.status },
+        });
+      } else {
+        this.activityService.logAsync({
+          userId,
+          userRole: userRole || 'unknown',
+          userName,
+          action: ActivityAction.LEAD_UPDATED,
+          entityType: ActivityEntityType.LEAD,
+          entityId: id,
+        });
+      }
+    }
+
     return lead ? toObjectResponse(lead) : null;
   }
 
@@ -103,7 +140,8 @@ export class LeadsService {
     return !!result;
   }
 
-  async assign(id: string, assignedTo: string, userId: string): Promise<any> {
+  async assign(id: string, assignedTo: string, userId: string, userRole?: string, userName?: string): Promise<any> {
+    const current = await this.leadModel.findOne({ id, isDeleted: false });
     const lead = await this.leadModel.findOneAndUpdate(
       { id, isDeleted: false },
       { $set: { assignedTo, updatedBy: userId } },
@@ -112,6 +150,18 @@ export class LeadsService {
     
     if (lead) {
       const result = toObjectResponse(lead);
+      
+      // Activity log
+      this.activityService.logAsync({
+        userId,
+        userRole: userRole || 'unknown',
+        userName,
+        action: current?.assignedTo ? ActivityAction.LEAD_REASSIGNED : ActivityAction.LEAD_ASSIGNED,
+        entityType: ActivityEntityType.LEAD,
+        entityId: id,
+        meta: { assignedTo, assignedFrom: current?.assignedTo },
+      });
+      
       // Тригеримо автоматизацію
       await this.automationService.emit({
         trigger: AutomationTrigger.LEAD_ASSIGNED,

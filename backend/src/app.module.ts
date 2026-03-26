@@ -26,6 +26,7 @@ import { ExportModule } from './modules/export/export.module';
 import { LeadRoutingModule } from './modules/lead-routing/lead-routing.module';
 import { FilesModule } from './modules/files/files.module';
 import { DocumentsModule } from './modules/documents/documents.module';
+import { ActivityModule } from './modules/activity/activity.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { DocumentsModule } from './modules/documents/documents.module';
     LeadRoutingModule,
     FilesModule,
     DocumentsModule,
+    ActivityModule,
   ],
 })
 export class AppModule {}

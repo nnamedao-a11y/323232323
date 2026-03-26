@@ -6,7 +6,7 @@ import time
 from datetime import datetime
 
 class MasterDashboardTester:
-    def __init__(self, base_url="https://nav-a11y.preview.emergentagent.com"):
+    def __init__(self, base_url="https://accessibility-hub-12.preview.emergentagent.com"):
         self.base_url = base_url
         self.token = None
         self.tests_run = 0
@@ -79,7 +79,7 @@ class MasterDashboardTester:
             data={"email": "admin@crm.com", "password": "admin123"}
         )
         if success and isinstance(response, dict):
-            self.token = response.get('token') or response.get('access_token')
+            self.token = response.get('access_token') or response.get('token')
             self.user_id = response.get('user', {}).get('id') or response.get('userId')
             if self.token:
                 print(f"   ✅ Token received: {self.token[:20]}...")
@@ -482,6 +482,152 @@ class MasterDashboardTester:
         
         return True
 
+    def test_activity_endpoints(self):
+        """Test Activity API endpoints"""
+        # Test recent activity
+        success1, response1 = self.run_test(
+            "Activity - Recent",
+            "GET",
+            "api/activity/recent?limit=10",
+            200
+        )
+        
+        # Test my activity
+        success2, response2 = self.run_test(
+            "Activity - My Activity",
+            "GET",
+            "api/activity/my?limit=20",
+            200
+        )
+        
+        # Test performance endpoint
+        success3, response3 = self.run_test(
+            "Activity - Performance",
+            "GET",
+            "api/activity/performance?period=day",
+            200
+        )
+        
+        # Test inactive managers
+        success4, response4 = self.run_test(
+            "Activity - Inactive Managers",
+            "GET",
+            "api/activity/inactive-managers?hours=2",
+            200
+        )
+        
+        if success1 and isinstance(response1, list):
+            print(f"   ✅ Recent activity returned {len(response1)} items")
+        
+        if success2 and isinstance(response2, list):
+            print(f"   ✅ My activity returned {len(response2)} items")
+            
+        if success3 and isinstance(response3, list):
+            print(f"   ✅ Performance data returned {len(response3)} managers")
+            
+        if success4 and isinstance(response4, list):
+            print(f"   ✅ Inactive managers returned {len(response4)} items")
+        
+        return success1 and success2 and success3 and success4
+
+    def test_staff_endpoints(self):
+        """Test Staff API endpoints"""
+        # Test staff list
+        success1, response1 = self.run_test(
+            "Staff - List",
+            "GET",
+            "api/staff",
+            200
+        )
+        
+        # Test staff stats
+        success2, response2 = self.run_test(
+            "Staff - Stats",
+            "GET",
+            "api/staff/stats",
+            200
+        )
+        
+        # Test staff performance
+        success3, response3 = self.run_test(
+            "Staff - Performance",
+            "GET",
+            "api/staff/performance?period=day",
+            200
+        )
+        
+        # Test inactive staff
+        success4, response4 = self.run_test(
+            "Staff - Inactive",
+            "GET",
+            "api/staff/inactive?hours=2",
+            200
+        )
+        
+        if success1 and isinstance(response1, dict):
+            data = response1.get('data', [])
+            print(f"   ✅ Staff list returned {len(data)} staff members")
+        
+        if success2 and isinstance(response2, dict):
+            print(f"   ✅ Staff stats returned: {list(response2.keys())}")
+            
+        if success3 and isinstance(response3, list):
+            print(f"   ✅ Staff performance returned {len(response3)} items")
+            
+        if success4 and isinstance(response4, list):
+            print(f"   ✅ Inactive staff returned {len(response4)} items")
+        
+        return success1 and success2 and success3 and success4
+
+    def test_settings_endpoints(self):
+        """Test Settings API endpoints"""
+        # Test settings list
+        success1, response1 = self.run_test(
+            "Settings - List",
+            "GET",
+            "api/settings",
+            200
+        )
+        
+        if success1 and isinstance(response1, list):
+            print(f"   ✅ Settings returned {len(response1)} items")
+            for setting in response1[:3]:  # Show first 3 settings
+                key = setting.get('key', 'unknown')
+                print(f"   - Setting: {key}")
+        
+        return success1
+
+    def test_basic_crud_endpoints(self):
+        """Test basic CRUD endpoints for main entities"""
+        endpoints = [
+            ("Leads", "api/leads"),
+            ("Customers", "api/customers"), 
+            ("Deals", "api/deals"),
+            ("Deposits", "api/deposits"),
+            ("Tasks", "api/tasks")
+        ]
+        
+        all_success = True
+        for name, endpoint in endpoints:
+            success, response = self.run_test(
+                f"{name} - List",
+                "GET",
+                endpoint,
+                200
+            )
+            if success:
+                if isinstance(response, dict) and 'data' in response:
+                    count = len(response['data'])
+                    print(f"   ✅ {name} returned {count} items")
+                elif isinstance(response, list):
+                    print(f"   ✅ {name} returned {len(response)} items")
+                else:
+                    print(f"   ✅ {name} endpoint responded successfully")
+            else:
+                all_success = False
+                
+        return all_success
+
 def main():
     print("🚀 Запуск тестування Master Dashboard v2 API...")
     print("=" * 60)
@@ -492,6 +638,10 @@ def main():
     tests = [
         ("Authentication", tester.test_login),
         ("System Health Check", tester.test_system_health),
+        ("Activity API Endpoints", tester.test_activity_endpoints),
+        ("Staff API Endpoints", tester.test_staff_endpoints),
+        ("Settings API Endpoints", tester.test_settings_endpoints),
+        ("Basic CRUD Endpoints", tester.test_basic_crud_endpoints),
         ("Master Dashboard - Basic", tester.test_master_dashboard_basic),
         ("Master Dashboard - Period Day", tester.test_master_dashboard_period_day),
         ("Master Dashboard - Period Week", tester.test_master_dashboard_period_week),

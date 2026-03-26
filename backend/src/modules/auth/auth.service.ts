@@ -2,9 +2,11 @@ import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { ActivityService } from '../activity/services/activity.service';
 import { LoginDto, TokenResponseDto } from './dto/auth.dto';
 import { CreateUserDto } from '../users/dto/user.dto';
 import { AuditAction, EntityType, UserRole } from '../../shared/enums';
+import { ActivityAction, ActivityEntityType, ActivitySource } from '../activity/enums/activity-action.enum';
 
 @Injectable()
 export class AuthService {
@@ -12,6 +14,7 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
     private auditLogService: AuditLogService,
+    private activityService: ActivityService,
   ) {}
 
   async login(loginDto: LoginDto, ip: string): Promise<TokenResponseDto> {
@@ -38,6 +41,17 @@ export class AuthService {
       entityId: user.id,
       userId: user.id,
       details: { ip },
+    });
+
+    // Activity log - неблокуюче
+    this.activityService.logAsync({
+      userId: user.id,
+      userRole: user.role,
+      userName: `${user.firstName} ${user.lastName}`,
+      action: ActivityAction.LOGIN,
+      entityType: ActivityEntityType.USER,
+      entityId: user.id,
+      context: { ip, source: ActivitySource.WEB },
     });
 
     const payload = { sub: user.id, email: user.email, role: user.role };
