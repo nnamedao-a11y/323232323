@@ -17,6 +17,7 @@ import ParserControl from './pages/ParserControl';
 import ProxyManager from './pages/ProxyManager';
 import ParserLogs from './pages/ParserLogs';
 import ParserSettings from './pages/ParserSettings';
+import Vehicles from './pages/Vehicles';
 import Layout from './components/Layout';
 import './App.css';
 
@@ -123,6 +124,7 @@ function App() {
             <Route path="parser/proxies" element={<ProxyManager />} />
             <Route path="parser/logs" element={<ParserLogs />} />
             <Route path="parser/settings" element={<ParserSettings />} />
+            <Route path="vehicles" element={<Vehicles />} />
           </Route>
         </Routes>
       </AuthProvider>

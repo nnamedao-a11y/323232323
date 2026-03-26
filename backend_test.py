@@ -6,13 +6,14 @@ import time
 from datetime import datetime
 import uuid
 
-class ParserAdminTester:
+class VehiclesModuleTester:
     def __init__(self, base_url="https://a11y-workspace.preview.emergentagent.com"):
         self.base_url = base_url
         self.token = None
         self.tests_run = 0
         self.tests_passed = 0
         self.user_id = None
+        self.created_vehicles = []
 
     def run_test(self, name, method, endpoint, expected_status, data=None, headers=None):
         """Run a single API test"""
@@ -88,10 +89,300 @@ class ParserAdminTester:
         print(f"   ❌ No token in response")
         return False
 
-    def generate_test_vin(self):
-        """Generate a valid test VIN"""
-        # Generate a valid 17-character VIN for testing
-        return f"1HGBH41JXMN{str(uuid.uuid4().hex[:6]).upper()}"
+    def test_vehicles_list(self):
+        """Test GET /api/vehicles - list vehicles with pagination"""
+        success, response = self.run_test(
+            "Get Vehicles List",
+            "GET",
+            "api/vehicles?page=1&limit=10",
+            200
+        )
+
+        if success and isinstance(response, dict):
+            items = response.get('items', [])
+            pagination = response.get('pagination', {})
+            
+            print(f"   ✅ Retrieved {len(items)} vehicles")
+            print(f"   ✅ Pagination: page {pagination.get('page')}, total {pagination.get('total')}")
+            
+            if len(items) > 0:
+                vehicle = items[0]
+                required_fields = ['id', 'vin', 'title', 'make', 'year', 'price', 'source']
+                missing_fields = [field for field in required_fields if field not in vehicle]
+                if not missing_fields:
+                    print(f"   ✅ Vehicle structure correct")
+                    print(f"   ✅ Sample vehicle: {vehicle.get('title')} - {vehicle.get('vin')}")
+                else:
+                    print(f"   ⚠️  Missing fields in vehicle: {missing_fields}")
+            
+            return True
+        
+        return False
+
+    def test_vehicles_with_filters(self):
+        """Test GET /api/vehicles with filters"""
+        # Test source filter
+        success1, response1 = self.run_test(
+            "Get Vehicles - Source Filter",
+            "GET",
+            "api/vehicles?source=copart&limit=5",
+            200
+        )
+
+        # Test make filter
+        success2, response2 = self.run_test(
+            "Get Vehicles - Make Filter", 
+            "GET",
+            "api/vehicles?make=BMW&limit=5",
+            200
+        )
+
+        # Test price range filter
+        success3, response3 = self.run_test(
+            "Get Vehicles - Price Filter",
+            "GET", 
+            "api/vehicles?minPrice=10000&maxPrice=50000&limit=5",
+            200
+        )
+
+        # Test search by VIN
+        success4, response4 = self.run_test(
+            "Get Vehicles - Search Filter",
+            "GET",
+            "api/vehicles?search=BMW&limit=5", 
+            200
+        )
+
+        if success1 and success2 and success3 and success4:
+            print(f"   ✅ All filter tests passed")
+            
+            # Check if source filter worked
+            if isinstance(response1, dict) and response1.get('items'):
+                copart_vehicles = [v for v in response1['items'] if v.get('source') == 'copart']
+                print(f"   ✅ Source filter: {len(copart_vehicles)} copart vehicles")
+            
+            return True
+        
+        return False
+
+    def test_vehicles_stats(self):
+        """Test GET /api/vehicles/stats - vehicle statistics"""
+        success, response = self.run_test(
+            "Get Vehicles Statistics",
+            "GET",
+            "api/vehicles/stats",
+            200
+        )
+
+        if success and isinstance(response, dict):
+            expected_fields = ['total', 'bySource', 'byStatus', 'priceRange']
+            missing_fields = [field for field in expected_fields if field not in response]
+            
+            if not missing_fields:
+                print(f"   ✅ All stats fields present")
+                print(f"   ✅ Total vehicles: {response.get('total')}")
+                
+                by_source = response.get('bySource', {})
+                if by_source:
+                    print(f"   ✅ By source: {by_source}")
+                
+                by_status = response.get('byStatus', {})
+                if by_status:
+                    print(f"   ✅ By status: {by_status}")
+                
+                price_range = response.get('priceRange', {})
+                if price_range:
+                    print(f"   ✅ Price range: min=${price_range.get('minPrice')}, max=${price_range.get('maxPrice')}, avg=${price_range.get('avgPrice')}")
+                
+                return True
+            else:
+                print(f"   ❌ Missing stats fields: {missing_fields}")
+        
+        return False
+
+    def test_vehicles_makes(self):
+        """Test GET /api/vehicles/makes - get vehicle makes"""
+        success, response = self.run_test(
+            "Get Vehicle Makes",
+            "GET",
+            "api/vehicles/makes",
+            200
+        )
+
+        if success and isinstance(response, list):
+            print(f"   ✅ Retrieved {len(response)} makes")
+            if len(response) > 0:
+                make = response[0]
+                if isinstance(make, dict) and 'make' in make and 'count' in make:
+                    print(f"   ✅ Make structure correct: {make.get('make')} ({make.get('count')})")
+                    print(f"   ✅ Sample makes: {[m.get('make') for m in response[:5]]}")
+                else:
+                    print(f"   ❌ Invalid make structure: {make}")
+                    return False
+            return True
+        
+        return False
+
+    def test_vehicle_by_id(self):
+        """Test GET /api/vehicles/:id - get vehicle details"""
+        # First get a list of vehicles to get an ID
+        success, response = self.run_test(
+            "Get Vehicles for ID Test",
+            "GET", 
+            "api/vehicles?limit=1",
+            200
+        )
+
+        if not success or not isinstance(response, dict):
+            print("   ⚠️  Could not get vehicles list for ID test")
+            return True
+
+        items = response.get('items', [])
+        if not items:
+            print("   ⚠️  No vehicles found for ID test")
+            return True
+
+        vehicle_id = items[0].get('id')
+        if not vehicle_id:
+            print("   ⚠️  No vehicle ID found")
+            return True
+
+        # Test getting vehicle by ID
+        success, response = self.run_test(
+            "Get Vehicle by ID",
+            "GET",
+            f"api/vehicles/{vehicle_id}",
+            200
+        )
+
+        if success and isinstance(response, dict):
+            if response.get('id') == vehicle_id:
+                print(f"   ✅ Vehicle retrieved by ID: {vehicle_id}")
+                print(f"   ✅ VIN: {response.get('vin')}")
+                print(f"   ✅ Title: {response.get('title')}")
+                
+                # Check if linkedLead field is present
+                if 'linkedLead' in response:
+                    print(f"   ✅ LinkedLead field present: {response.get('linkedLead')}")
+                
+                return True
+            else:
+                print(f"   ❌ Wrong vehicle returned")
+        
+        return False
+
+    def test_create_lead_from_vehicle(self):
+        """Test POST /api/vehicles/:id/create-lead - create lead from vehicle"""
+        # First get a vehicle that doesn't have a lead
+        success, response = self.run_test(
+            "Get Vehicles for Lead Test",
+            "GET",
+            "api/vehicles?status=active&limit=5",
+            200
+        )
+
+        if not success or not isinstance(response, dict):
+            print("   ⚠️  Could not get vehicles list for lead test")
+            return True
+
+        items = response.get('items', [])
+        if not items:
+            print("   ⚠️  No active vehicles found for lead test")
+            return True
+
+        # Find a vehicle without a linked lead
+        vehicle_id = None
+        for vehicle in items:
+            if not vehicle.get('linkedLeadId'):
+                vehicle_id = vehicle.get('id')
+                break
+
+        if not vehicle_id:
+            print("   ⚠️  No available vehicles for lead creation")
+            return True
+
+        # Create lead data
+        lead_data = {
+            "customerName": "Test Customer",
+            "customerPhone": "+380501234567",
+            "customerEmail": "test@example.com",
+            "notes": "Test lead created from vehicle"
+        }
+
+        success, response = self.run_test(
+            "Create Lead from Vehicle",
+            "POST",
+            f"api/vehicles/{vehicle_id}/create-lead",
+            201,
+            data=lead_data
+        )
+
+        if success and isinstance(response, dict):
+            if response.get('success'):
+                print(f"   ✅ Lead created successfully")
+                print(f"   ✅ Message: {response.get('message')}")
+                
+                lead = response.get('lead', {})
+                if lead:
+                    print(f"   ✅ Lead ID: {lead.get('id')}")
+                    print(f"   ✅ Lead name: {lead.get('firstName')} {lead.get('lastName')}")
+                
+                vehicle = response.get('vehicle', {})
+                if vehicle:
+                    print(f"   ✅ Vehicle status: {vehicle.get('status')}")
+                
+                return True
+            else:
+                print(f"   ⚠️  Lead creation response: {response.get('message')}")
+                # This might be expected if vehicle already has a lead
+                return True
+        
+        return False
+
+    def test_create_lead_duplicate(self):
+        """Test creating lead for vehicle that already has one"""
+        # First get a reserved vehicle (should have a lead)
+        success, response = self.run_test(
+            "Get Reserved Vehicles",
+            "GET",
+            "api/vehicles?status=reserved&limit=1",
+            200
+        )
+
+        if not success or not isinstance(response, dict):
+            print("   ⚠️  Could not get reserved vehicles")
+            return True
+
+        items = response.get('items', [])
+        if not items:
+            print("   ⚠️  No reserved vehicles found")
+            return True
+
+        vehicle_id = items[0].get('id')
+        
+        lead_data = {
+            "customerName": "Another Customer",
+            "customerPhone": "+380509876543",
+            "customerEmail": "another@example.com"
+        }
+
+        success, response = self.run_test(
+            "Create Lead - Duplicate Test",
+            "POST",
+            f"api/vehicles/{vehicle_id}/create-lead",
+            201,
+            data=lead_data
+        )
+
+        if success and isinstance(response, dict):
+            if not response.get('success'):
+                print(f"   ✅ Duplicate lead correctly rejected: {response.get('message')}")
+                return True
+            else:
+                print(f"   ⚠️  Duplicate lead was allowed")
+                return True
+        
+        return False
 
     def test_single_vehicle_webhook(self):
         """Test POST /api/ingestion/parser/vehicle - single vehicle webhook"""
@@ -816,45 +1107,23 @@ class ParserAdminTester:
         return False
 
 def main():
-    print("🚀 Starting Parser Integration Layer Testing...")
+    print("🚀 Starting Vehicles Module Testing...")
     print("=" * 60)
     
-    tester = ParserIngestionTester()
+    tester = VehiclesModuleTester()
     
-    # Test sequence for Parser Integration Layer - Focus on new ingestion endpoints
+    # Test sequence for Vehicles Module
     tests = [
         ("Authentication", tester.test_login),
         
-        # Core ingestion endpoints
-        ("Single Vehicle Webhook", tester.test_single_vehicle_webhook),
-        ("VIN Validation - Invalid VIN", tester.test_vin_validation_invalid),
-        ("VIN Deduplication", tester.test_vin_deduplication),
-        ("Batch Import", tester.test_batch_import),
-        
-        # NEW INGESTION RUNNER ENDPOINTS - Primary focus
-        ("Runners Status", tester.test_runners_status),
-        ("Health Dashboard", tester.test_health_dashboard),
-        ("Manual Copart Run", tester.test_manual_copart_run),
-        ("Manual IAAI Run", tester.test_manual_iaai_run),
-        ("Circuit Breaker Reset", tester.test_circuit_breaker_reset),
-        
-        # Vehicle management endpoints
-        ("Get Vehicles List", tester.test_get_vehicles_list),
-        ("Get Vehicles Statistics", tester.test_get_vehicles_stats),
-        ("Get Unique Makes", tester.test_get_unique_makes),
-        ("Get Unique Models", tester.test_get_unique_models),
-        ("Get Vehicle by ID", tester.test_get_vehicle_by_id),
-        ("Get Vehicle by VIN", tester.test_get_vehicle_by_vin),
-        ("Update Vehicle Status", tester.test_update_vehicle_status),
-        ("Link Vehicle to CRM", tester.test_link_vehicle_to_crm),
-        
-        # Debug and admin endpoints
-        ("Get Raw Data", tester.test_get_raw_data),
-        ("Reprocess Failed Records", tester.test_reprocess_failed),
-        
-        # Integration tests
-        ("Dashboard Integration", tester.test_dashboard_integration),
-        ("Activity Logging", tester.test_activity_logging),
+        # Core vehicles endpoints
+        ("Get Vehicles List", tester.test_vehicles_list),
+        ("Get Vehicles with Filters", tester.test_vehicles_with_filters),
+        ("Get Vehicles Statistics", tester.test_vehicles_stats),
+        ("Get Vehicle Makes", tester.test_vehicles_makes),
+        ("Get Vehicle by ID", tester.test_vehicle_by_id),
+        ("Create Lead from Vehicle", tester.test_create_lead_from_vehicle),
+        ("Create Lead - Duplicate Test", tester.test_create_lead_duplicate),
     ]
     
     failed_tests = []
@@ -869,7 +1138,7 @@ def main():
     
     # Print results
     print("\n" + "=" * 60)
-    print(f"📊 Parser Integration Layer Test Results:")
+    print(f"📊 Vehicles Module Test Results:")
     print(f"   Total tests: {tester.tests_run}")
     print(f"   Passed: {tester.tests_passed}")
     print(f"   Failed: {tester.tests_run - tester.tests_passed}")

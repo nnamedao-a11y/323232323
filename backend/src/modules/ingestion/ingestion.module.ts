@@ -12,6 +12,10 @@ import { VehicleService } from './services/vehicle.service';
 // Controllers
 import { IngestionController } from './controllers/ingestion.controller';
 import { ProxyAdminController } from './antiblock/proxy-admin.controller';
+import { VehiclesController } from './controllers/vehicles.controller';
+
+// Lead model for vehicles controller
+import { Lead, LeadSchema } from '../leads/lead.schema';
 
 // Antiblock Services
 import {
@@ -36,9 +40,10 @@ import { IAAIRunner } from './runners/iaai.runner';
     MongooseModule.forFeature([
       { name: ParserRawData.name, schema: ParserRawDataSchema },
       { name: Vehicle.name, schema: VehicleSchema },
+      { name: Lead.name, schema: LeadSchema },
     ]),
   ],
-  controllers: [IngestionController, ProxyAdminController],
+  controllers: [IngestionController, ProxyAdminController, VehiclesController],
   providers: [
     // Core services
     IngestionService,
