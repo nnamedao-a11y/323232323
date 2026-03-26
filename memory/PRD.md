@@ -1,141 +1,103 @@
-# CRM/Admin Platform - PRD
+# CRM Auto Business Platform - PRD
 
-## Оригінальна постановка задачі
-Full CRM/Admin platform для автобізнесу з call-center операціями, automation workflows, communication management. Parser Integration Layer для прийому даних з аукціонів (Copart, IAAI).
+## Original Problem Statement
+Parser Control Center для CRM автобізнесу (BIBI Cars). Створення admin-панелі для керування парсерами (Copart, IAAI) без технічних знань. 
 
-## Зафіксований стек
-- **Backend**: NestJS + TypeScript + MongoDB
-- **Frontend**: React + Tailwind CSS + Framer Motion
-- **UI/UX**: Light Theme (BIBI Cars branded)
-- **Cache/Queues**: Redis + Bull (6 черг)
-- **SMS**: Provider abstraction layer (Twilio + Viber placeholder)
-- **File Storage**: Local + S3 abstraction
-- **Parser**: Puppeteer + Anti-block layer
+**Ключові вимоги:**
+- Керування парсерами через UI (запустити/зупинити/рестарт)
+- Моніторинг здоров'я системи
+- Керування проксі серверами
+- Перегляд логів та помилок
+- Налаштування конфігурації
+- Система алертів
 
-## Реалізовано (Jan 2026 - Mar 2026)
+## Architecture
 
-### ✅ Core CRM
-- Leads, Customers, Deals, Deposits, Tasks
+### Tech Stack
+- **Backend:** NestJS + TypeScript + MongoDB
+- **Frontend:** React + Tailwind CSS + Phosphor Icons
+- **Database:** MongoDB (парсер стейт, логи, налаштування, алерти)
 
-### ✅ Webhook & Delivery Tracking
-### ✅ Automation Engine (11+ rules)
-### ✅ Lead Routing Module v1
-### ✅ Files & Documents Module
-### ✅ Master Dashboard v2 (9 sections)
-### ✅ Activity Module
-### ✅ Staff Control & Performance
-### ✅ Call Control SLA Module
-### ✅ Deposit Auto-Flow
+### User Roles
+1. **MASTER_ADMIN** - повний контроль системи та парсерів
+2. **MODERATOR** - тільки перегляд статусу (без керування)
 
-### ✅ Parser Integration Layer v2 (Mar 2026 - NEW!)
+## Core Requirements (Static)
 
-**Архітектура:**
-```
-Parser Runner → Universal Scraper → Raw Storage → Normalize → Dedup (VIN) → Vehicle → Activity → Dashboard
-```
+### Parser Control Center
+- [x] Runners Dashboard (статуси парсерів)
+- [x] Health Monitor (стан системи)
+- [x] Proxy Manager (керування проксі)
+- [x] Logs Viewer (історія запусків)
+- [x] Settings Panel (конфігурація)
+- [x] Alerts System (сповіщення)
 
-**Модуль:** `/app/backend/src/modules/ingestion/`
+## What's Been Implemented
 
-```
-ingestion/
-├── antiblock/              ← Захист від виявлення (скопійовано)
-│   ├── proxy-pool.service.ts
-│   ├── enhanced-proxy-pool.service.ts
-│   ├── http-fingerprint.service.ts
-│   ├── circuit-breaker.service.ts
-│   ├── parser-guard.service.ts
-│   ├── parser-health.service.ts
-│   ├── resilient-fetch.service.ts
-│   ├── retry.util.ts
-│
-├── scraping-core/          ← Базовий скрапінг (скопійовано)
-│   ├── browser-session.manager.ts
-│   ├── universal-scraper.ts
-│   ├── network-interceptor.ts
-│   ├── retry-fallback.ts
-│
-├── runners/                ← Парсери для джерел
-│   ├── copart.runner.ts    ← Copart.com parser
-│   ├── iaai.runner.ts      ← IAAI.com parser
-│
-├── normalize/              ← Нормалізація даних
-│   ├── copart.normalize.ts
-│   ├── iaai.normalize.ts
-│
-├── schemas/
-│   ├── parser-raw-data.schema.ts
-│   ├── vehicle.schema.ts
-│
-├── services/
-│   ├── ingestion.service.ts
-│   ├── vehicle.service.ts
-```
+### Date: 2026-03-26
 
-**Antiblock Features:**
-- Proxy Pool з failover (не rotation)
-- HTTP Fingerprint ротація (6 User-Agents)
-- Circuit Breaker (5 failures = OPEN, 10 min cooldown)
-- Exponential Backoff з jitter
-- Parser Health monitoring
-- Rate limiter
+#### Backend (NestJS)
+**New Module: /app/backend/src/modules/ingestion/admin/**
 
-**Runner Endpoints:**
-- `GET /api/ingestion/runners/status` - статус runners
-- `GET /api/ingestion/health` - health dashboard
-- `POST /api/ingestion/runners/copart/run` - manual run
-- `POST /api/ingestion/runners/iaai/run` - manual run
-- `POST /api/ingestion/runners/all/run` - run all
-- `POST /api/ingestion/circuit-breaker/reset` - reset
+1. **Schemas:**
+   - `ParserState` - стан парсера (status, lastRunAt, stats)
+   - `ParserLog` - логи запусків та помилок
+   - `ParserSetting` - налаштування парсера
+   - `ParserAlert` - системні алерти
 
-**CRON Jobs:**
-- Copart: `0 */4 * * *` (кожні 4 години)
-- IAAI: `30 */4 * * *` (зміщено на 30 хв)
+2. **Services:**
+   - `ParserAdminService` - головний orchestration service
+   - `ParserControlService` - керування парсерами (run/stop/restart)
+   - `ParserHealthAdminService` - health monitoring
+   - `ParserLogsService` - логування
+   - `ParserAlertsService` - система алертів
+   - `ProxyAdminService` - керування проксі
 
-**Normalization:**
-- VIN extraction та validation (17 chars)
-- Title generation (Year Make Model)
-- Price extraction (currentBid, highBid, buyNow)
-- Images extraction та dedupe
-- Condition grade mapping (A/B/C/D)
-- Metadata preservation
+3. **Controllers:**
+   - `ParserAdminController` - основні endpoints
+   - `ProxyAdminController` - proxy management
 
-**Deduplication:**
-- VIN = PRIMARY KEY
-- if VIN exists → UPDATE
-- else → CREATE
+4. **API Endpoints:**
+   - Parser Control: run, stop, resume, restart, run-all, stop-all
+   - Health: overview, source-specific
+   - Logs: with filters and pagination
+   - Settings: get/update per source
+   - Alerts: list, resolve
+   - Proxies: CRUD + test
 
-## Test Results (Mar 2026)
-- Backend: 92.3% (24/26 tests)
-- Note: Runner timeouts expected (placeholder API)
+#### Frontend (React)
+**New Pages:**
 
-## Backlog
+1. **ParserControl.js** (`/parser`)
+2. **ProxyManager.js** (`/parser/proxies`)
+3. **ParserLogs.js** (`/parser/logs`)
+4. **ParserSettings.js** (`/parser/settings`)
+
+## Test Results
+- Backend: 93.8% passed (15/16 tests)
+- Frontend: 100% passed
+- Note: Parser run timeout expected without real Copart/IAAI credentials
+
+## Prioritized Backlog
 
 ### P0 - Critical
-- [x] ~~Master Dashboard v2~~ ✅
-- [x] ~~Activity Module~~ ✅
-- [x] ~~Parser Integration v1~~ ✅
-- [x] ~~Parser Integration v2 (antiblock)~~ ✅
-- [ ] Configure real Copart/IAAI API credentials
-- [ ] Configure proxy list
+- [x] Parser Control Center UI
+- [x] Health Monitoring
+- [x] Proxy Management
+- [x] Settings Management
+- [ ] Real Copart/IAAI API credentials
 
 ### P1 - High Priority
-- [ ] Vehicles UI page in frontend
 - [ ] WebSocket real-time dashboard updates
-- [ ] Public API + Website
+- [ ] Vehicles UI page (база транспорту)
+- [ ] Self-healing automation
 
-### P2 - Medium Priority
-- [ ] Reviews module
+### P2 - Medium
+- [ ] Public Website з каталогом авто
 - [ ] Client Cabinet
+- [ ] Reviews module
 
-### P3 - Nice to Have
-- [ ] AI Lead Scoring
-- [ ] Document OCR
-
-## Дата останнього оновлення
-2026-03-26
-
-## Наступні дії
+## Next Tasks
 1. Налаштувати реальні Copart/IAAI API credentials
-2. Додати proxy list до EnhancedProxyPool
-3. Vehicles UI page
-4. Public Website з каталогом
+2. Додати WebSocket для live updates на дашборді
+3. Реалізувати Vehicles UI page
