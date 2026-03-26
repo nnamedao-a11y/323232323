@@ -61,7 +61,7 @@ export class LeadsDashboardService {
       0,
     );
 
-    // Unassigned leads
+    // Unassigned leads (subset of new/inProgress that have no manager)
     const unassignedCount = await this.leadModel.countDocuments({
       ...baseFilter,
       $or: [
@@ -72,6 +72,8 @@ export class LeadsDashboardService {
       status: { $nin: ['won', 'lost', 'archived'] },
     });
 
+    // Total active = new + in_progress (leads that need attention)
+    // Note: unassignedCount is a SUBSET of totalActive (unassigned from new/inProgress)
     const totalActive = newCount + inProgressCount;
 
     return {
