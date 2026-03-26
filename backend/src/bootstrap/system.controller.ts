@@ -1,13 +1,13 @@
-import { Controller, Get, Post, UseGuards, Body } from '@nestjs/common';
+import { Controller, Get, Post, UseGuards, Body, HttpCode } from '@nestjs/common';
 import { BootstrapService, BootstrapStatus } from './bootstrap.service';
-import { SeedService } from './seed.service';
+import { SeedService, SeedResult } from './seed.service';
 import { JwtAuthGuard } from '../modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../modules/auth/guards/roles.guard';
 import { Roles } from '../modules/auth/decorators/roles.decorator';
 import { UserRole } from '../shared/enums';
 
 /**
- * System Controller - Health checks та системні операції
+ * System Controller v2.0 - Health checks та системні операції
  */
 @Controller('system')
 export class SystemController {
@@ -25,7 +25,7 @@ export class SystemController {
     return {
       status: status.ready ? 'healthy' : 'degraded',
       timestamp: new Date().toISOString(),
-      version: process.env.npm_package_version || '1.0.0',
+      version: status.version,
       uptime: process.uptime(),
       services: {
         mongodb: status.mongodb,
@@ -68,9 +68,10 @@ export class SystemController {
    * Re-run bootstrap (admin only)
    */
   @Post('bootstrap')
+  @HttpCode(200)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.MASTER_ADMIN)
-  async reRunBootstrap() {
+  async reRunBootstrap(): Promise<BootstrapStatus> {
     return this.bootstrapService.runBootstrap();
   }
 
@@ -78,26 +79,70 @@ export class SystemController {
    * Run seed (admin only)
    */
   @Post('seed')
+  @HttpCode(200)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.MASTER_ADMIN)
-  async runSeed(@Body() body?: { includeTestLeads?: boolean }) {
+  async runSeed(@Body() body?: { includeTestLeads?: boolean; testLeadsCount?: number }): Promise<SeedResult & { testLeads?: number }> {
     const result = await this.seedService.seedAll();
     
     if (body?.includeTestLeads) {
-      result.leads = await this.seedService.seedTestLeads(10);
+      const testLeads = await this.seedService.seedTestLeads(body.testLeadsCount || 10);
+      return { ...result, testLeads };
     }
     
     return result;
   }
 
   /**
+   * Seed missing data only (admin only)
+   */
+  @Post('seed/missing')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.MASTER_ADMIN)
+  async seedMissing(): Promise<{ success: boolean; message: string }> {
+    await this.seedService.seedMissing();
+    return { success: true, message: 'Missing data seeded' };
+  }
+
+  /**
+   * Seed test leads (admin only)
+   */
+  @Post('seed/test-leads')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.MASTER_ADMIN)
+  async seedTestLeads(@Body() body?: { count?: number }): Promise<{ created: number }> {
+    const count = await this.seedService.seedTestLeads(body?.count || 10);
+    return { created: count };
+  }
+
+  /**
    * Clear test data (admin only)
    */
   @Post('clear-test-data')
+  @HttpCode(200)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.MASTER_ADMIN)
-  async clearTestData() {
+  async clearTestData(): Promise<{ success: boolean }> {
     await this.seedService.clearTestData();
     return { success: true };
+  }
+
+  /**
+   * Get system info
+   */
+  @Get('info')
+  getInfo() {
+    const status = this.bootstrapService.getStatus();
+    return {
+      name: 'BIBI Cars CRM',
+      version: status.version,
+      environment: process.env.NODE_ENV || 'development',
+      startedAt: status.startedAt,
+      uptime: process.uptime(),
+      node: process.version,
+      platform: process.platform,
+    };
   }
 }

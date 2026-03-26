@@ -15,20 +15,25 @@ import {
 } from '../shared/enums';
 
 /**
- * Seed Service - Створення початкових даних
+ * Seed Service v2.0 - Повна ініціалізація системи
  * 
- * Викликається при:
- * 1. Першому запуску системи
- * 2. Cold start (після очищення БД)
- * 3. Development environment setup
+ * Створює всі необхідні дані для роботи CRM:
+ * - Користувачі всіх ролей
+ * - Правила автоматизації
+ * - Правила роутингу лідів
+ * - Шаблони повідомлень
+ * - Системні налаштування
+ * - SLA конфігурація
  */
 
 interface SeedResult {
   users: number;
-  leads: number;
+  staff: number;
   automationRules: number;
+  routingRules: number;
   messageTemplates: number;
   settings: number;
+  slaSettings: number;
 }
 
 export { SeedResult };
@@ -45,27 +50,74 @@ export class SeedService {
     @InjectModel('Setting') private settingsModel: Model<any>,
   ) {}
 
-  /**
-   * Запуск повного seed
-   */
+  // ==================== CHECK METHODS ====================
+
+  async isColdStart(): Promise<boolean> {
+    const adminCount = await this.userModel.countDocuments({ role: UserRole.MASTER_ADMIN });
+    return adminCount === 0;
+  }
+
+  async hasStaff(): Promise<boolean> {
+    const count = await this.userModel.countDocuments({ role: { $ne: UserRole.MASTER_ADMIN } });
+    return count > 0;
+  }
+
+  async hasAutomationRules(): Promise<boolean> {
+    const count = await this.automationRuleModel.countDocuments();
+    return count > 0;
+  }
+
+  async hasRoutingRules(): Promise<boolean> {
+    const rules = await this.settingsModel.findOne({ key: 'routing_rules' });
+    return !!rules;
+  }
+
+  async hasMessageTemplates(): Promise<boolean> {
+    const count = await this.messageTemplateModel.countDocuments();
+    return count > 0;
+  }
+
+  async hasSettings(): Promise<boolean> {
+    const count = await this.settingsModel.countDocuments();
+    return count > 0;
+  }
+
+  // ==================== MAIN SEED ====================
+
   async seedAll(): Promise<SeedResult> {
-    this.logger.log('🌱 Starting database seed...');
+    this.logger.log('🌱 Starting full system seed v2.0...');
 
     const result: SeedResult = {
       users: 0,
-      leads: 0,
+      staff: 0,
       automationRules: 0,
+      routingRules: 0,
       messageTemplates: 0,
       settings: 0,
+      slaSettings: 0,
     };
 
     try {
+      // 1. Users & Staff
       result.users = await this.seedUsers();
+      result.staff = await this.seedStaff();
+
+      // 2. Automation Rules
       result.automationRules = await this.seedAutomationRules();
+
+      // 3. Routing Rules
+      result.routingRules = await this.seedRoutingRules();
+
+      // 4. Message Templates
       result.messageTemplates = await this.seedMessageTemplates();
+
+      // 5. System Settings
       result.settings = await this.seedSettings();
+
+      // 6. SLA Settings
+      result.slaSettings = await this.seedSlaSettings();
       
-      this.logger.log(`✅ Seed completed: ${JSON.stringify(result)}`);
+      this.logger.log(`✅ Full seed completed: ${JSON.stringify(result)}`);
     } catch (error) {
       this.logger.error(`❌ Seed failed: ${error.message}`);
       throw error;
@@ -74,151 +126,260 @@ export class SeedService {
     return result;
   }
 
-  /**
-   * Seed користувачів (admin)
-   */
+  async seedMissing(): Promise<void> {
+    this.logger.log('🔍 Checking for missing data...');
+    
+    if (!await this.hasStaff()) {
+      await this.seedStaff();
+    }
+    if (!await this.hasAutomationRules()) {
+      await this.seedAutomationRules();
+    }
+    if (!await this.hasRoutingRules()) {
+      await this.seedRoutingRules();
+    }
+    if (!await this.hasMessageTemplates()) {
+      await this.seedMessageTemplates();
+    }
+    
+    // Ensure all settings exist
+    await this.seedSettings();
+    await this.seedSlaSettings();
+  }
+
+  // ==================== USERS ====================
+
   async seedUsers(): Promise<number> {
     const existingAdmin = await this.userModel.findOne({ email: 'admin@crm.com' });
     if (existingAdmin) {
-      this.logger.log('Admin user already exists');
+      this.logger.log('✓ Admin user already exists');
       return 0;
     }
 
     const hashedPassword = await bcrypt.hash('admin123', 10);
     
-    const users = [
+    const admin = {
+      id: generateId(),
+      email: 'admin@crm.com',
+      password: hashedPassword,
+      firstName: 'Master',
+      lastName: 'Admin',
+      phone: '+380501234567',
+      role: UserRole.MASTER_ADMIN,
+      isActive: true,
+    };
+
+    await this.userModel.create(admin);
+    this.logger.log('✓ Created master admin: admin@crm.com / admin123');
+    return 1;
+  }
+
+  async seedStaff(): Promise<number> {
+    const existingStaff = await this.userModel.countDocuments({ 
+      role: { $ne: UserRole.MASTER_ADMIN } 
+    });
+    
+    if (existingStaff >= 4) {
+      this.logger.log(`✓ Staff already exists (${existingStaff})`);
+      return 0;
+    }
+
+    const hashedPassword = await bcrypt.hash('staff123', 10);
+    
+    const staff = [
       {
         id: generateId(),
-        email: 'admin@crm.com',
+        email: 'head@crm.com',
         password: hashedPassword,
-        firstName: 'Master',
-        lastName: 'Admin',
-        role: UserRole.MASTER_ADMIN,
+        firstName: 'Олександр',
+        lastName: 'Керівник',
+        phone: '+380501111111',
+        role: UserRole.ADMIN,
         isActive: true,
       },
       {
         id: generateId(),
-        email: 'manager@crm.com',
+        email: 'moderator@crm.com',
         password: hashedPassword,
-        firstName: 'Test',
-        lastName: 'Manager',
+        firstName: 'Марія',
+        lastName: 'Модератор',
+        phone: '+380502222222',
+        role: UserRole.MODERATOR,
+        isActive: true,
+      },
+      {
+        id: generateId(),
+        email: 'manager1@crm.com',
+        password: hashedPassword,
+        firstName: 'Іван',
+        lastName: 'Менеджер',
+        phone: '+380503333333',
         role: UserRole.MANAGER,
+        isActive: true,
+      },
+      {
+        id: generateId(),
+        email: 'manager2@crm.com',
+        password: hashedPassword,
+        firstName: 'Олена',
+        lastName: 'Менеджер',
+        phone: '+380504444444',
+        role: UserRole.MANAGER,
+        isActive: true,
+      },
+      {
+        id: generateId(),
+        email: 'finance@crm.com',
+        password: hashedPassword,
+        firstName: 'Наталія',
+        lastName: 'Фінанси',
+        phone: '+380505555555',
+        role: UserRole.FINANCE,
         isActive: true,
       },
     ];
 
-    await this.userModel.insertMany(users);
-    this.logger.log(`Created ${users.length} users`);
-    return users.length;
+    await this.userModel.insertMany(staff);
+    this.logger.log(`✓ Created ${staff.length} staff members`);
+    return staff.length;
   }
 
-  /**
-   * Seed правил автоматизації
-   */
+  // ==================== AUTOMATION RULES ====================
+
   async seedAutomationRules(): Promise<number> {
     const existingRules = await this.automationRuleModel.countDocuments();
     if (existingRules > 0) {
-      this.logger.log(`Automation rules already exist (${existingRules})`);
+      this.logger.log(`✓ Automation rules already exist (${existingRules})`);
       return 0;
     }
 
     const rules = [
-      // Lead Lifecycle
+      // === Lead Lifecycle ===
       {
         id: generateId(),
-        name: 'Новий лід - створити задачу на дзвінок',
-        description: 'Коли створюється новий лід, автоматично створюється задача зателефонувати протягом 10 хвилин',
+        name: 'Новий лід → Callback за 10 хв',
+        description: 'При створенні нового ліда автоматично планується callback через 10 хвилин',
         trigger: AutomationTrigger.LEAD_CREATED,
         actions: [
           { action: AutomationAction.SCHEDULE_CALLBACK, params: { delayMinutes: 10 } },
-          { action: AutomationAction.SEND_NOTIFICATION, params: { notificationType: NotificationType.NEW_LEAD, title: 'Новий лід', message: 'Новий лід: {{firstName}} {{lastName}}. Зателефонуйте протягом 10 хвилин.' } }
+          { action: AutomationAction.SEND_NOTIFICATION, params: { 
+            notificationType: NotificationType.NEW_LEAD, 
+            title: 'Новий лід', 
+            message: 'Новий лід: {{firstName}} {{lastName}} з {{source}}. Зателефонуйте протягом 10 хвилин.' 
+          }}
         ],
         isActive: true,
         priority: 100,
       },
-      // No-Answer Workflow
       {
         id: generateId(),
-        name: 'Перший no_answer - follow-up через 2 години',
-        description: 'Якщо клієнт не відповів на перший дзвінок, створити follow-up задачу через 2 години',
+        name: 'Лід призначено → Welcome SMS',
+        description: 'При призначенні ліда менеджеру відправляється welcome SMS клієнту',
+        trigger: AutomationTrigger.LEAD_ASSIGNED,
+        actions: [
+          { action: AutomationAction.SEND_SMS, params: { templateType: 'welcome' } },
+          { action: AutomationAction.SEND_NOTIFICATION, params: { 
+            notificationType: NotificationType.LEAD_ASSIGNED, 
+            title: 'Новий лід призначено', 
+            message: 'Вам призначено ліда: {{firstName}} {{lastName}}' 
+          }}
+        ],
+        isActive: true,
+        priority: 95,
+      },
+
+      // === No-Answer Workflow ===
+      {
+        id: generateId(),
+        name: 'No Answer #1 → Follow-up через 2 години',
+        description: 'Перший невдалий дзвінок: follow-up через 2 години',
         trigger: AutomationTrigger.CALL_MISSED,
         triggerConditions: { callAttempts: 1 },
         actions: [
-          { action: AutomationAction.SCHEDULE_FOLLOW_UP, params: { delayMinutes: 120, message: 'Повторний дзвінок - клієнт не відповів (спроба 1)' } }
+          { action: AutomationAction.SCHEDULE_FOLLOW_UP, params: { 
+            delayMinutes: 120, 
+            message: 'Повторний дзвінок - клієнт не відповів (спроба 1)' 
+          }}
         ],
         isActive: true,
         priority: 85,
       },
       {
         id: generateId(),
-        name: 'Другий no_answer - follow-up через 2 дні',
-        description: 'Якщо клієнт не відповів вдруге, створити follow-up через 2 дні',
+        name: 'No Answer #2 → Follow-up через 1 день',
+        description: 'Другий невдалий дзвінок: follow-up через день',
         trigger: AutomationTrigger.CALL_MISSED,
         triggerConditions: { callAttempts: 2 },
         actions: [
-          { action: AutomationAction.SCHEDULE_FOLLOW_UP, params: { delayMinutes: 2880, message: 'Повторний дзвінок - клієнт не відповів (спроба 2)' } }
+          { action: AutomationAction.SCHEDULE_FOLLOW_UP, params: { 
+            delayMinutes: 1440, 
+            message: 'Повторний дзвінок - клієнт не відповів (спроба 2)' 
+          }}
         ],
         isActive: true,
         priority: 84,
       },
       {
         id: generateId(),
-        name: 'Третій no_answer - відправити SMS',
-        description: 'Після 2 невдалих спроб відправити SMS клієнту',
+        name: 'No Answer #3 → SMS + Follow-up через 2 дні',
+        description: 'Третій невдалий дзвінок: SMS та follow-up через 2 дні',
         trigger: AutomationTrigger.CALL_MISSED,
         triggerConditions: { callAttempts: 3 },
         actions: [
-          { action: AutomationAction.SEND_SMS, params: { templateType: 'no_answer', message: 'Доброго дня, {{firstName}}! Ми намагалися зв\'язатися з вами. Зателефонуйте нам: {{managerPhone}} або напишіть.' } },
-          { action: AutomationAction.SCHEDULE_FOLLOW_UP, params: { delayMinutes: 4320, message: 'Фінальна спроба контакту після SMS (3 дні)' } }
+          { action: AutomationAction.SEND_SMS, params: { templateType: 'no_answer' } },
+          { action: AutomationAction.SCHEDULE_FOLLOW_UP, params: { 
+            delayMinutes: 2880, 
+            message: 'Фінальна спроба після SMS (спроба 3)' 
+          }}
         ],
         isActive: true,
         priority: 83,
       },
       {
         id: generateId(),
-        name: 'Четвертий no_answer - перевести в cold/unreachable',
-        description: 'Якщо клієнт не відповів після SMS, перевести в unreachable статус',
+        name: 'No Answer #4 → Unreachable',
+        description: 'Четвертий невдалий дзвінок: позначити як unreachable',
         trigger: AutomationTrigger.CALL_MISSED,
         triggerConditions: { callAttempts: 4 },
         actions: [
-          { action: AutomationAction.SEND_NOTIFICATION, params: { notificationType: NotificationType.SYSTEM, title: 'Лід unreachable', message: 'Лід {{firstName}} {{lastName}} переведено в статус unreachable після 4 спроб контакту' } }
+          { action: AutomationAction.SEND_NOTIFICATION, params: { 
+            notificationType: NotificationType.SYSTEM, 
+            title: 'Лід unreachable', 
+            message: 'Лід {{firstName}} {{lastName}} переведено в статус unreachable після 4 спроб' 
+          }}
         ],
         isActive: true,
         priority: 82,
       },
-      // Task Management
+
+      // === SLA & Escalation ===
       {
         id: generateId(),
-        name: 'Прострочена задача - ескалація',
-        description: 'Якщо задача прострочена, ескалювати адміну',
+        name: 'Прострочена задача → Ескалація',
+        description: 'При простроченій задачі ескалювати адміну',
         trigger: AutomationTrigger.TASK_OVERDUE,
         actions: [
           { action: AutomationAction.ESCALATE_TO_ADMIN, params: {} },
-          { action: AutomationAction.SEND_NOTIFICATION, params: { notificationType: NotificationType.TASK_OVERDUE, title: 'Прострочена задача', message: 'Задача "{{title}}" прострочена!' } }
+          { action: AutomationAction.SEND_NOTIFICATION, params: { 
+            notificationType: NotificationType.TASK_OVERDUE, 
+            title: 'Прострочена задача!', 
+            message: 'Задача "{{title}}" прострочена!' 
+          }}
         ],
         isActive: true,
         priority: 90,
       },
-      // Deposit
       {
         id: generateId(),
-        name: 'Депозит отримано - повідомлення',
-        description: 'Коли отримано депозит, повідомити менеджера',
-        trigger: AutomationTrigger.DEPOSIT_RECEIVED,
-        actions: [
-          { action: AutomationAction.SEND_NOTIFICATION, params: { notificationType: NotificationType.DEPOSIT_RECEIVED, title: 'Депозит отримано', message: 'Клієнт вніс депозит: {{amount}} USD' } }
-        ],
-        isActive: true,
-        priority: 95,
-      },
-      // No Response
-      {
-        id: generateId(),
-        name: 'Немає відповіді 24 години - нагадування',
-        description: 'Якщо лід не контактував 24 години, нагадати менеджеру',
+        name: 'Лід без активності 24г → Нагадування',
+        description: 'Якщо лід не контактував 24 години - нагадати менеджеру',
         trigger: AutomationTrigger.NO_RESPONSE_24H,
         actions: [
-          { action: AutomationAction.SEND_NOTIFICATION, params: { notificationType: NotificationType.SYSTEM, title: 'Нагадування', message: 'Лід {{firstName}} {{lastName}} не контактував більше 24 годин' } },
+          { action: AutomationAction.SEND_NOTIFICATION, params: { 
+            notificationType: NotificationType.SYSTEM, 
+            title: 'Нагадування', 
+            message: 'Лід {{firstName}} {{lastName}} не контактував більше 24 годин' 
+          }},
           { action: AutomationAction.SCHEDULE_CALLBACK, params: { delayMinutes: 30 } }
         ],
         isActive: true,
@@ -226,49 +387,164 @@ export class SeedService {
       },
       {
         id: generateId(),
-        name: 'Немає відповіді 48 годин - ескалація',
-        description: 'Якщо лід не контактував 48 годин, ескалювати',
+        name: 'Лід без активності 48г → Ескалація',
+        description: 'Якщо лід не контактував 48 годин - ескалація',
         trigger: AutomationTrigger.NO_RESPONSE_48H,
         actions: [
           { action: AutomationAction.ESCALATE_TO_ADMIN, params: {} },
-          { action: AutomationAction.SEND_NOTIFICATION, params: { notificationType: NotificationType.SYSTEM, title: 'Ескалація: немає контакту', message: 'Лід {{firstName}} {{lastName}} не контактував більше 48 годин. Потрібна увага!' } }
+          { action: AutomationAction.SEND_NOTIFICATION, params: { 
+            notificationType: NotificationType.SYSTEM, 
+            title: 'Критично: немає контакту', 
+            message: 'Лід {{firstName}} {{lastName}} не контактував більше 48 годин!' 
+          }}
         ],
         isActive: true,
         priority: 75,
       },
+
+      // === Deposits ===
+      {
+        id: generateId(),
+        name: 'Депозит отримано → Повідомлення',
+        description: 'При отриманні депозиту повідомити менеджера та фінанси',
+        trigger: AutomationTrigger.DEPOSIT_RECEIVED,
+        actions: [
+          { action: AutomationAction.SEND_NOTIFICATION, params: { 
+            notificationType: NotificationType.DEPOSIT_RECEIVED, 
+            title: 'Депозит отримано!', 
+            message: 'Клієнт вніс депозит: {{amount}} USD' 
+          }}
+        ],
+        isActive: true,
+        priority: 95,
+      },
+
+      // === Documents ===
+      {
+        id: generateId(),
+        name: 'Документ на верифікації → Нотифікація',
+        description: 'При завантаженні документа сповістити відповідальних',
+        trigger: AutomationTrigger.LEAD_STATUS_CHANGED,
+        triggerConditions: { hasDocuments: true },
+        actions: [
+          { action: AutomationAction.SEND_NOTIFICATION, params: { 
+            notificationType: NotificationType.SYSTEM, 
+            title: 'Новий документ', 
+            message: 'Завантажено документ для перевірки' 
+          }}
+        ],
+        isActive: true,
+        priority: 60,
+      },
     ];
 
     await this.automationRuleModel.insertMany(rules);
-    this.logger.log(`Created ${rules.length} automation rules`);
+    this.logger.log(`✓ Created ${rules.length} automation rules`);
     return rules.length;
   }
 
-  /**
-   * Seed шаблонів повідомлень
-   */
+  // ==================== ROUTING RULES ====================
+
+  async seedRoutingRules(): Promise<number> {
+    const existingRules = await this.settingsModel.findOne({ key: 'routing_rules' });
+    if (existingRules) {
+      this.logger.log('✓ Routing rules already exist');
+      return 0;
+    }
+
+    // Get managers for routing
+    const managers = await this.userModel.find({ 
+      role: { $in: [UserRole.MANAGER, UserRole.MODERATOR] }, 
+      isActive: true 
+    });
+
+    const managerIds = managers.map(m => m.id);
+
+    const routingRules = {
+      id: generateId(),
+      key: 'routing_rules',
+      description: 'Lead routing configuration',
+      value: {
+        defaultStrategy: 'least_loaded',
+        rules: [
+          {
+            id: generateId(),
+            name: 'Default Routing - Least Loaded',
+            description: 'Розподіл по найменш завантаженому менеджеру',
+            conditions: {},
+            strategy: 'least_loaded',
+            assignees: managerIds,
+            priority: 1,
+            isActive: true,
+          },
+          {
+            id: generateId(),
+            name: 'VIP Leads - Senior Manager',
+            description: 'VIP ліди призначаються старшому менеджеру',
+            conditions: { source: ['referral', 'partner'], value: { $gte: 5000 } },
+            strategy: 'manual',
+            assignees: managerIds.slice(0, 1),
+            priority: 100,
+            isActive: true,
+          },
+          {
+            id: generateId(),
+            name: 'Website Leads - Round Robin',
+            description: 'Ліди з сайту рівномірно розподіляються',
+            conditions: { source: ['website', 'landing'] },
+            strategy: 'round_robin',
+            assignees: managerIds,
+            priority: 50,
+            isActive: true,
+          },
+          {
+            id: generateId(),
+            name: 'Phone Leads - First Available',
+            description: 'Телефонні ліди до першого вільного',
+            conditions: { source: ['phone', 'callback'] },
+            strategy: 'least_loaded',
+            assignees: managerIds,
+            priority: 80,
+            isActive: true,
+          },
+        ],
+        fallbackAssignee: managerIds[0] || null,
+        maxLeadsPerManager: 50,
+        reassignOnOverload: true,
+      },
+    };
+
+    await this.settingsModel.create(routingRules);
+    this.logger.log('✓ Created routing rules');
+    return 1;
+  }
+
+  // ==================== MESSAGE TEMPLATES ====================
+
   async seedMessageTemplates(): Promise<number> {
     const existingTemplates = await this.messageTemplateModel.countDocuments();
     if (existingTemplates > 0) {
-      this.logger.log(`Message templates already exist (${existingTemplates})`);
+      this.logger.log(`✓ Message templates already exist (${existingTemplates})`);
       return 0;
     }
 
     const templates = [
-      // Email templates
+      // === Email Templates ===
       {
         id: generateId(),
-        name: 'Новий лід',
-        description: 'Нотифікація менеджеру про нового ліда',
+        name: 'Новий лід - Internal',
+        description: 'Внутрішнє повідомлення про нового ліда',
         channel: CommunicationChannel.EMAIL,
         type: 'new_lead',
         subject: 'Новий лід: {{firstName}} {{lastName}}',
-        content: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #0A0A0B;">Новий лід в системі</h2>
-          <p>Ім'я: <strong>{{firstName}} {{lastName}}</strong></p>
-          <p>Email: {{email}}</p>
-          <p>Телефон: {{phone}}</p>
-          <p>Джерело: {{source}}</p>
-          <hr style="border: 1px solid #E4E4E7; margin: 20px 0;">
+        content: `<div style="font-family: 'IBM Plex Sans', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #18181B; margin-bottom: 20px;">Новий лід в системі</h2>
+          <div style="background: #F4F4F5; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+            <p style="margin: 8px 0;"><strong>Ім'я:</strong> {{firstName}} {{lastName}}</p>
+            <p style="margin: 8px 0;"><strong>Email:</strong> {{email}}</p>
+            <p style="margin: 8px 0;"><strong>Телефон:</strong> {{phone}}</p>
+            <p style="margin: 8px 0;"><strong>Джерело:</strong> {{source}}</p>
+          </div>
           <p style="color: #71717A; font-size: 14px;">Зателефонуйте клієнту протягом 10 хвилин для найкращого результату.</p>
         </div>`,
         isActive: true,
@@ -276,17 +552,17 @@ export class SeedService {
       {
         id: generateId(),
         name: 'Нагадування про задачу',
-        description: 'Нагадування про прострочену або наближену задачу',
+        description: 'Нагадування про дедлайн задачі',
         channel: CommunicationChannel.EMAIL,
         type: 'task_reminder',
         subject: 'Нагадування: {{taskTitle}}',
-        content: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #DC2626;">Нагадування про задачу</h2>
-          <p><strong>{{taskTitle}}</strong></p>
-          <p>{{taskDescription}}</p>
-          <p>Термін: {{dueDate}}</p>
-          <hr style="border: 1px solid #E4E4E7; margin: 20px 0;">
-          <p style="color: #71717A; font-size: 14px;">AutoCRM</p>
+        content: `<div style="font-family: 'IBM Plex Sans', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #DC2626; margin-bottom: 20px;">⏰ Нагадування про задачу</h2>
+          <div style="background: #FEF2F2; padding: 20px; border-radius: 12px; border-left: 4px solid #DC2626;">
+            <p style="margin: 8px 0; font-size: 18px;"><strong>{{taskTitle}}</strong></p>
+            <p style="margin: 8px 0; color: #71717A;">{{taskDescription}}</p>
+            <p style="margin: 16px 0 0; color: #DC2626;"><strong>Термін:</strong> {{dueDate}}</p>
+          </div>
         </div>`,
         isActive: true,
       },
@@ -296,145 +572,264 @@ export class SeedService {
         description: 'Повідомлення про отримання депозиту',
         channel: CommunicationChannel.EMAIL,
         type: 'deposit_alert',
-        subject: 'Депозит отримано: {{amount}} USD',
-        content: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #16A34A;">Депозит підтверджено</h2>
-          <p>Клієнт: <strong>{{customerName}}</strong></p>
-          <p>Сума: <strong>{{amount}} USD</strong></p>
-          <p>Угода: {{dealTitle}}</p>
-          <hr style="border: 1px solid #E4E4E7; margin: 20px 0;">
-          <p style="color: #71717A; font-size: 14px;">AutoCRM</p>
+        subject: '💰 Депозит отримано: {{amount}} USD',
+        content: `<div style="font-family: 'IBM Plex Sans', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #059669; margin-bottom: 20px;">Депозит підтверджено</h2>
+          <div style="background: #ECFDF5; padding: 20px; border-radius: 12px; border-left: 4px solid #059669;">
+            <p style="margin: 8px 0;"><strong>Клієнт:</strong> {{customerName}}</p>
+            <p style="margin: 8px 0; font-size: 24px; color: #059669;"><strong>{{amount}} USD</strong></p>
+            <p style="margin: 8px 0;"><strong>Угода:</strong> {{dealTitle}}</p>
+          </div>
         </div>`,
         isActive: true,
       },
-      // SMS templates (Bulgaria multilingual)
+
+      // === SMS Templates (Multilingual) ===
       {
         id: generateId(),
-        name: 'Follow-up SMS (UA)',
-        description: 'SMS нагадування для follow-up - українська',
+        name: 'Welcome SMS',
+        description: 'Привітання для нового ліда',
+        channel: CommunicationChannel.SMS,
+        type: 'welcome',
+        subject: 'Welcome',
+        content: 'Дякуємо за звернення до BIBI Cars! Наш менеджер {{managerName}} зв\'яжеться з вами найближчим часом. Тел: {{managerPhone}}',
+        contentLocalized: {
+          uk: 'Дякуємо за звернення до BIBI Cars! Наш менеджер {{managerName}} зв\'яжеться з вами найближчим часом. Тел: {{managerPhone}}',
+          en: 'Thank you for contacting BIBI Cars! Our manager {{managerName}} will reach you shortly. Phone: {{managerPhone}}',
+          bg: 'Благодарим ви, че се свързахте с BIBI Cars! Нашият мениджър {{managerName}} ще се свърже с вас скоро. Тел: {{managerPhone}}',
+        },
+        isActive: true,
+      },
+      {
+        id: generateId(),
+        name: 'Follow-up SMS',
+        description: 'SMS для follow-up',
         channel: CommunicationChannel.SMS,
         type: 'follow_up',
         subject: 'Follow-up',
-        content: 'Доброго дня, {{firstName}}! Це {{managerName}} з AutoCRM. Нагадую про нашу розмову. Зателефонуйте, будь ласка: {{managerPhone}}',
+        content: 'Доброго дня, {{firstName}}! Це {{managerName}} з BIBI Cars. Нагадую про нашу розмову. Зателефонуйте: {{managerPhone}}',
         contentLocalized: {
-          uk: 'Доброго дня, {{firstName}}! Це {{managerName}} з AutoCRM. Нагадую про нашу розмову. Зателефонуйте, будь ласка: {{managerPhone}}',
-          en: 'Hello {{firstName}}! This is {{managerName}} from AutoCRM. Following up on our conversation. Please call: {{managerPhone}}',
-          bg: 'Здравейте {{firstName}}! Това е {{managerName}} от AutoCRM. Напомняме за нашия разговор. Моля, обадете се: {{managerPhone}}',
+          uk: 'Доброго дня, {{firstName}}! Це {{managerName}} з BIBI Cars. Нагадую про нашу розмову. Зателефонуйте: {{managerPhone}}',
+          en: 'Hello {{firstName}}! This is {{managerName}} from BIBI Cars. Following up on our conversation. Please call: {{managerPhone}}',
+          bg: 'Здравейте {{firstName}}! Това е {{managerName}} от BIBI Cars. Напомняме за нашия разговор. Обадете се: {{managerPhone}}',
         },
         isActive: true,
       },
       {
         id: generateId(),
         name: 'No Answer SMS',
-        description: 'SMS після невдалих спроб дзвінка',
+        description: 'SMS після невдалих дзвінків',
         channel: CommunicationChannel.SMS,
         type: 'no_answer',
         subject: 'No Answer',
-        content: 'Доброго дня, {{firstName}}! Ми намагалися зв\'язатися з вами. Зателефонуйте нам: {{managerPhone}} або напишіть на email.',
+        content: 'Доброго дня, {{firstName}}! Ми намагалися зв\'язатися з вами. Зателефонуйте: {{managerPhone}} або напишіть нам.',
         contentLocalized: {
-          uk: 'Доброго дня, {{firstName}}! Ми намагалися зв\'язатися з вами. Зателефонуйте нам: {{managerPhone}} або напишіть на email.',
-          en: 'Hello {{firstName}}! We tried to reach you. Please call us: {{managerPhone}} or send an email.',
-          bg: 'Здравейте {{firstName}}! Опитахме се да се свържем с вас. Моля, обадете се: {{managerPhone}} или ни пишете на email.',
+          uk: 'Доброго дня, {{firstName}}! Ми намагалися зв\'язатися з вами. Зателефонуйте: {{managerPhone}} або напишіть нам.',
+          en: 'Hello {{firstName}}! We tried to reach you. Please call us: {{managerPhone}} or send us a message.',
+          bg: 'Здравейте {{firstName}}! Опитахме се да се свържем с вас. Обадете се: {{managerPhone}} или ни пишете.',
         },
         isActive: true,
       },
       {
         id: generateId(),
         name: 'Callback Reminder SMS',
-        description: 'SMS нагадування про зворотний дзвінок',
+        description: 'Нагадування про зворотний дзвінок',
         channel: CommunicationChannel.SMS,
         type: 'callback',
         subject: 'Callback',
-        content: 'Доброго дня! Залишили заявку на {{companyName}}? Ми зателефонуємо вам сьогодні. Дякуємо!',
+        content: 'Доброго дня! Ви залишали заявку на BIBI Cars. Наш менеджер зателефонує вам сьогодні. Дякуємо!',
         contentLocalized: {
-          uk: 'Доброго дня! Залишили заявку на {{companyName}}? Ми зателефонуємо вам сьогодні. Дякуємо!',
-          en: 'Hello! Left a request at {{companyName}}? We will call you today. Thank you!',
-          bg: 'Здравейте! Оставихте заявка в {{companyName}}? Ще ви се обадим днес. Благодарим!',
+          uk: 'Доброго дня! Ви залишали заявку на BIBI Cars. Наш менеджер зателефонує вам сьогодні. Дякуємо!',
+          en: 'Hello! You left a request at BIBI Cars. Our manager will call you today. Thank you!',
+          bg: 'Здравейте! Оставихте заявка в BIBI Cars. Нашият мениджър ще ви се обади днес. Благодарим!',
         },
         isActive: true,
       },
       {
         id: generateId(),
-        name: 'Welcome SMS',
-        description: 'SMS привітання для нового ліда',
+        name: 'Deposit Confirmation SMS',
+        description: 'Підтвердження депозиту клієнту',
         channel: CommunicationChannel.SMS,
-        type: 'welcome',
-        subject: 'Welcome',
-        content: 'Дякуємо за звернення до {{companyName}}! Наш менеджер зв\'яжеться з вами найближчим часом.',
+        type: 'deposit_confirm',
+        subject: 'Deposit',
+        content: 'Дякуємо! Ваш депозит {{amount}} USD отримано. Менеджер {{managerName}} зв\'яжеться з вами для підтвердження. BIBI Cars',
         contentLocalized: {
-          uk: 'Дякуємо за звернення до {{companyName}}! Наш менеджер зв\'яжеться з вами найближчим часом.',
-          en: 'Thank you for contacting {{companyName}}! Our manager will reach you shortly.',
-          bg: 'Благодарим ви, че се свързахте с {{companyName}}! Нашият мениджър ще се свърже с вас скоро.',
+          uk: 'Дякуємо! Ваш депозит {{amount}} USD отримано. Менеджер {{managerName}} зв\'яжеться з вами. BIBI Cars',
+          en: 'Thank you! Your deposit of {{amount}} USD received. Manager {{managerName}} will contact you. BIBI Cars',
+          bg: 'Благодарим! Вашият депозит от {{amount}} USD е получен. Мениджър {{managerName}} ще се свърже с вас. BIBI Cars',
         },
         isActive: true,
       },
     ];
 
     await this.messageTemplateModel.insertMany(templates);
-    this.logger.log(`Created ${templates.length} message templates`);
+    this.logger.log(`✓ Created ${templates.length} message templates`);
     return templates.length;
   }
 
-  /**
-   * Seed системних налаштувань
-   */
+  // ==================== SETTINGS ====================
+
   async seedSettings(): Promise<number> {
-    const existingSettings = await this.settingsModel.countDocuments();
-    if (existingSettings > 0) {
-      this.logger.log('Settings already exist');
+    let count = 0;
+
+    // System Settings
+    const systemSettings = await this.settingsModel.findOne({ key: 'system_settings' });
+    if (!systemSettings) {
+      await this.settingsModel.create({
+        id: generateId(),
+        key: 'system_settings',
+        description: 'Main system settings',
+        value: {
+          companyName: 'BIBI Cars',
+          defaultLanguage: 'uk',
+          supportedLanguages: ['uk', 'en', 'bg'],
+          timezone: 'Europe/Sofia',
+          currency: 'USD',
+          workingHours: {
+            start: '09:00',
+            end: '18:00',
+            timezone: 'Europe/Sofia',
+            workDays: [1, 2, 3, 4, 5], // Mon-Fri
+          },
+          notifications: {
+            emailEnabled: true,
+            smsEnabled: true,
+            pushEnabled: false,
+          },
+          branding: {
+            primaryColor: '#18181B',
+            accentColor: '#4F46E5',
+          },
+        },
+      });
+      count++;
+    }
+
+    // Lead Statuses
+    const leadStatuses = await this.settingsModel.findOne({ key: 'lead_statuses' });
+    if (!leadStatuses) {
+      await this.settingsModel.create({
+        id: generateId(),
+        key: 'lead_statuses',
+        description: 'Available lead statuses',
+        value: Object.values(LeadStatus),
+      });
+      count++;
+    }
+
+    // Lead Sources
+    const leadSources = await this.settingsModel.findOne({ key: 'lead_sources' });
+    if (!leadSources) {
+      await this.settingsModel.create({
+        id: generateId(),
+        key: 'lead_sources',
+        description: 'Available lead sources',
+        value: Object.values(LeadSource),
+      });
+      count++;
+    }
+
+    // Deal Statuses
+    const dealStatuses = await this.settingsModel.findOne({ key: 'deal_statuses' });
+    if (!dealStatuses) {
+      await this.settingsModel.create({
+        id: generateId(),
+        key: 'deal_statuses',
+        description: 'Available deal statuses',
+        value: ['new', 'negotiation', 'proposal', 'contract', 'won', 'lost'],
+      });
+      count++;
+    }
+
+    // Deposit Statuses
+    const depositStatuses = await this.settingsModel.findOne({ key: 'deposit_statuses' });
+    if (!depositStatuses) {
+      await this.settingsModel.create({
+        id: generateId(),
+        key: 'deposit_statuses',
+        description: 'Available deposit statuses',
+        value: ['pending', 'confirmed', 'completed', 'refunded', 'cancelled'],
+      });
+      count++;
+    }
+
+    // Document Types
+    const documentTypes = await this.settingsModel.findOne({ key: 'document_types' });
+    if (!documentTypes) {
+      await this.settingsModel.create({
+        id: generateId(),
+        key: 'document_types',
+        description: 'Available document types',
+        value: ['contract', 'invoice', 'deposit_proof', 'client_document', 'delivery_document', 'custom'],
+      });
+      count++;
+    }
+
+    if (count > 0) {
+      this.logger.log(`✓ Created ${count} settings`);
+    }
+    return count;
+  }
+
+  // ==================== SLA SETTINGS ====================
+
+  async seedSlaSettings(): Promise<number> {
+    const existingSla = await this.settingsModel.findOne({ key: 'sla_config' });
+    if (existingSla) {
+      this.logger.log('✓ SLA settings already exist');
       return 0;
     }
 
-    const settings = {
+    await this.settingsModel.create({
       id: generateId(),
-      key: 'system_settings',
-      description: 'Main system settings',
+      key: 'sla_config',
+      description: 'SLA configuration for call center operations',
       value: {
-        companyName: 'AutoCRM',
-        defaultLanguage: 'uk',
-        timezone: 'Europe/Sofia', // Bulgaria
-        currency: 'USD',
-        workingHours: {
-          start: '09:00',
-          end: '18:00',
-          timezone: 'Europe/Sofia',
+        callback: {
+          firstResponseMinutes: 5,
+          followUpMinutes: 15,
+          escalation1Minutes: 30,
+          escalation2Minutes: 60,
+          maxAttempts: 4,
         },
-        notifications: {
-          emailEnabled: true,
-          smsEnabled: true,
-          pushEnabled: false,
+        lead: {
+          firstResponseMinutes: 10,
+          noActivityWarningHours: 24,
+          staleHours: 48,
         },
-        automation: {
-          enabled: true,
-          maxRetries: 3,
-          retryDelayMinutes: [5, 15, 30],
+        manager: {
+          inactiveMinutes: 120,
+          maxActiveLeads: 50,
         },
-        sms: {
-          provider: 'twilio',
-          defaultCountryCode: '+359', // Bulgaria
-          senderName: 'AutoCRM',
+        escalation: {
+          level1Actions: ['notify_manager'],
+          level2Actions: ['notify_manager', 'notify_admin', 'create_task'],
+          level3Actions: ['notify_manager', 'notify_admin', 'alert_master', 'create_task'],
+        },
+        cron: {
+          callbackCheckMinutes: 5,
+          leadCheckMinutes: 10,
+          aggregationHours: 1,
+          dailySummaryHour: 9,
         },
       },
-    };
+    });
 
-    await this.settingsModel.create(settings);
-    this.logger.log('Created system settings');
+    this.logger.log('✓ Created SLA settings');
     return 1;
   }
 
-  /**
-   * Seed тестових лідів (dev only)
-   */
-  async seedTestLeads(count: number = 5): Promise<number> {
-    const existingLeads = await this.leadModel.countDocuments();
-    if (existingLeads >= count) {
-      this.logger.log(`Test leads already exist (${existingLeads})`);
-      return 0;
-    }
+  // ==================== TEST DATA ====================
 
+  async seedTestLeads(count: number = 10): Promise<number> {
     const sources = Object.values(LeadSource);
     const statuses = Object.values(LeadStatus);
     const contactStatuses = Object.values(ContactStatus);
+    
+    const managers = await this.userModel.find({ 
+      role: { $in: [UserRole.MANAGER, UserRole.MODERATOR] }, 
+      isActive: true 
+    });
 
     const leads: any[] = [];
     for (let i = 0; i < count; i++) {
@@ -451,20 +846,18 @@ export class SeedService {
         value: Math.floor(Math.random() * 10000),
         callAttempts: i % 4,
         escalationLevel: i % 4,
+        assignedTo: managers.length > 0 ? managers[i % managers.length].id : undefined,
         isDeleted: false,
       });
     }
 
     await this.leadModel.insertMany(leads);
-    this.logger.log(`Created ${leads.length} test leads`);
+    this.logger.log(`✓ Created ${leads.length} test leads`);
     return leads.length;
   }
 
-  /**
-   * Очистка тестових даних
-   */
   async clearTestData(): Promise<void> {
     await this.leadModel.deleteMany({ email: { $regex: /^test\.lead/ } });
-    this.logger.log('Cleared test data');
+    this.logger.log('✓ Cleared test data');
   }
 }
