@@ -8,16 +8,22 @@ Full CRM/Admin platform для автобізнесу з call-center опера�
 - **Frontend**: React + Tailwind CSS
 - **Cache/Queues**: Redis + Bull (6 черг)
 - **SMS**: Provider abstraction layer (Twilio + Viber placeholder)
+- **File Storage**: Local + S3 abstraction
 - **Webhooks**: Twilio delivery status callbacks
 - **Архітектура**: Event-driven, modular monolith
 - **Мова інтерфейсу**: Українська (адмін), UK/EN/BG (шаблони)
 
 ## Реалізовано (Jan 2026 - Mar 2026)
 
+### ✅ Core CRM
+- Leads management (CRUD, status pipeline)
+- Customers management
+- Deals management
+- Deposits management
+- Tasks & Reminders
+
 ### ✅ Webhook & Delivery Tracking System
 - POST /api/webhooks/twilio/status - Twilio SMS delivery callbacks
-- POST /api/webhooks/resend/status - Resend email callbacks (placeholder)
-- POST /api/webhooks/viber - Viber callbacks (placeholder)
 - Message Schema з full delivery tracking
 - Timeline Events для всіх типів комунікацій
 
@@ -31,130 +37,139 @@ Full CRM/Admin platform для автобізнесу з call-center опера�
 - Event-Driven Actions
 - SMS/Email auto-send triggers
 
-### ✅ Lead Routing Module v1 (Mar 2026 - NEW)
+### ✅ Lead Routing Module v1 (Mar 2026)
+- **Routing Strategies**: least_loaded, round_robin, fallback, manual
+- **4 default rules**: Default-LeastLoaded, Bulgaria Market, Phone-RoundRobin, VIP Leads
+- **Assignment History** - повний аудит призначень
+- **Workload Matrix** - score = activeLeads*2 + openTasks + overdueTasks*3
+- **SLA Tracking** - firstResponseDueAt
+- **Automation Integration** - ASSIGN_MANAGER action
+
+**API:**
+- POST /api/lead-routing/assign/:leadId
+- POST /api/lead-routing/reassign/:leadId
+- GET /api/lead-routing/workload
+- GET /api/lead-routing/history/:leadId
+- CRUD для routing rules
+
+### ✅ Files & Documents Module (Mar 2026 - NEW)
 
 **Architecture:**
 ```
 modules/
-  lead-routing/
-    controllers/
-      lead-routing.controller.ts
+  files/                          # Infrastructure layer
+    controllers/files.controller.ts
     services/
-      lead-routing.service.ts        # Main orchestration
-      lead-routing-strategy.service.ts  # Strategy selection
-      manager-availability.service.ts   # Manager filtering
-      routing-rules.service.ts          # Rules CRUD
-    schemas/
-      routing-rule.schema.ts
-      assignment-history.schema.ts
-    dto/
-      routing.dto.ts
-    enums/
-      assignment.enum.ts
-    interfaces/
-      routing.interface.ts
+      files.service.ts
+      file-access.service.ts
+    providers/
+      local-storage.provider.ts
+      s3-storage.provider.ts
+      storage-provider.factory.ts
+    schemas/file.schema.ts
+    interfaces/storage-provider.interface.ts
+
+  documents/                      # Business layer
+    controllers/documents.controller.ts
+    services/documents.service.ts
+    schemas/document.schema.ts
+    enums/document.enum.ts
 ```
 
-**Routing Strategies:**
-- `least_loaded` - основна стратегія (score = activeLeads*2 + openTasks + overdueTasks*3)
-- `round_robin` - рівномірний розподіл по lastAssignedAt
-- `fallback` - fallback manager або queue
-- `manual` - ручне призначення
-- `overdue_reassign` - перепризначення при SLA breach
-
-**Default Routing Rules:**
-1. Default - Least Loaded (priority: 0)
-2. Bulgaria Market (priority: 50)
-3. Phone/Missed Call - Round Robin (priority: 60, SLA: 5 min)
-4. VIP Leads (priority: 100, SLA: 5 min)
-
-**API Endpoints:**
-```
-POST /api/lead-routing/assign/:leadId      # Auto/force assignment
-POST /api/lead-routing/reassign/:leadId    # Manual reassignment
-GET  /api/lead-routing/history/:leadId     # Assignment history
-GET  /api/lead-routing/workload            # Manager workload matrix
-GET  /api/lead-routing/fallback-queue      # Fallback queue items
-POST /api/lead-routing/fallback-queue/:id/resolve
-GET  /api/lead-routing/rules               # CRUD routing rules
-POST /api/lead-routing/rules
-PATCH /api/lead-routing/rules/:id
-DELETE /api/lead-routing/rules/:id
-POST /api/lead-routing/rules/:id/toggle
-```
-
-**Lead Schema (нові поля):**
+**File Schema:**
 ```typescript
 {
-  assignedTo?: string,
-  assignedAt?: Date,
-  assignmentStrategy?: string,
-  assignmentReason?: string,
-  reassignedCount: number,
-  firstResponseDueAt?: Date,
-  firstResponseAt?: Date,
-  isOverdueForFirstResponse: boolean
+  id, filename, originalName, extension, mimeType, size,
+  storageKey, storageProvider: 's3' | 'local',
+  uploadedBy, relatedTo: { entityType, entityId },
+  tags[], access: 'private' | 'restricted' | 'public',
+  metadata: { checksum, source, note }
 }
 ```
 
-**User Schema (нові поля):**
-```typescript
-{
-  isAvailableForAssignment: boolean,
-  assignmentPriority?: number,
-  supportedMarkets: string[],
-  supportedLanguages: string[],
-  supportedLeadSources: string[],
-  maxActiveLeads?: number,
-  currentActiveLeads: number,
-  currentOpenTasks: number,
-  currentOverdueTasks: number,
-  lastAssignedAt?: Date
-}
-```
+**Document Types:**
+- contract
+- invoice
+- deposit_proof
+- client_document
+- delivery_document
+- custom
 
-**Automation Integration:**
-- При `lead_created` автоматично викликається `ASSIGN_MANAGER` action
-- Routing створює task "Зв'язатися" з 10 хв deadline
-- Notification менеджеру про нового ліда
+**Document Statuses:**
+- draft → uploaded → pending_verification → verified/rejected → archived
+
+**Verification Flow:**
+1. Upload файл
+2. Створити document з fileIds
+3. Submit for verification
+4. Admin/Finance verify або reject
+5. Notifications + Audit logs
+
+**Files API:**
+- POST /api/files/upload
+- GET /api/files/:id
+- GET /api/files/:id/url (signed URL)
+- DELETE /api/files/:id
+- GET /api/files/entity/:entityType/:entityId
+
+**Documents API:**
+- POST /api/documents
+- GET /api/documents/:id
+- PATCH /api/documents/:id
+- POST /api/documents/:id/attach-files
+- POST /api/documents/:id/submit-for-verification
+- POST /api/documents/:id/verify
+- POST /api/documents/:id/reject
+- POST /api/documents/:id/archive
+- GET /api/documents/queue/pending-verification
+- GET /api/documents/customer/:customerId
+- GET /api/documents/deal/:dealId
+- GET /api/documents/deposit/:depositId
+
+**Storage Providers:**
+- LocalStorageProvider - /app/uploads (dev)
+- S3StorageProvider - AWS S3 compatible (prod)
+
+**Access Control:**
+- Admin: all access
+- Manager: own related files
+- Finance: financial documents only
 
 ## Test Results (Mar 2026)
 - Backend Lead Routing: 100%
-- All routing endpoints working
-- Auto-assignment on lead creation ✓
-- Assignment history tracking ✓
-- Workload matrix calculation ✓
+- Backend Files/Documents: 100%
+- All verification workflows working ✓
 
 ## Backlog
 
 ### P0 - Critical
 - [ ] Configure Twilio credentials
-- [ ] Configure webhook URL in Twilio Console
+- [ ] Configure S3 for production
 
 ### P1 - High Priority
-- [ ] Documents / File Storage (contracts, deposits)
-- [ ] UI: Communication timeline в картці ліда
-- [ ] UI: Lead assignment UI with workload view
-- [ ] Viber Business integration
+- [ ] **Master Dashboard v2** (SLA breaches, workload heatmap, stuck leads)
+- [ ] UI: Document verification panel
+- [ ] UI: File viewer/uploader components
+- [ ] Deposit integration (auto-create deposit_proof document)
 - [ ] SLA overdue auto-reassignment cron job
 
 ### P2 - Medium Priority
-- [ ] Master Dashboard v2 (lead load by manager, SLA breaches)
-- [ ] Resend webhook integration
+- [ ] Reviews module (Google reviews, site reviews)
+- [ ] Client Cabinet (client sees own documents)
+- [ ] Viber Business integration
 - [ ] Rate limiting for SMS
-- [ ] Reviews module
 
 ### P3 - Nice to Have
 - [ ] AI Lead Scoring
+- [ ] Document OCR
 - [ ] WhatsApp Business integration
-- [ ] Advanced routing (skill-based, timezone)
-- [ ] Vacation calendars
+- [ ] E-signature integration
 
 ## Дата останнього оновлення
 2026-03-26
 
 ## Наступні дії
-1. Реалізувати Documents / File Storage модуль
-2. Додати UI для lead assignment workload
-3. Налаштувати cron job для SLA monitoring
-4. Додати UI для routing rules management
+1. **Master Dashboard v2** - візуалізація навантаження, SLA breaches, pending verification queue
+2. Deposit integration - автоматичне створення deposit_proof при завантаженні
+3. UI components для файлів та документів
+4. Cron jobs для SLA monitoring
