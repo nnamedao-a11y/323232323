@@ -11,6 +11,7 @@ import { VehicleService } from './services/vehicle.service';
 
 // Controllers
 import { IngestionController } from './controllers/ingestion.controller';
+import { ProxyAdminController } from './antiblock/proxy-admin.controller';
 
 // Antiblock Services
 import {
@@ -29,27 +30,6 @@ import { IAAIRunner } from './runners/iaai.runner';
 
 /**
  * Ingestion Module
- * 
- * Parser Integration Layer з anti-block захистом:
- * 
- * 1. Antiblock Layer:
- *    - Proxy pool з failover
- *    - HTTP fingerprint ротація
- *    - Circuit breaker
- *    - Retry з exponential backoff
- *    - Parser health monitoring
- * 
- * 2. Scraping Core:
- *    - Browser session management
- *    - Universal XHR interceptor
- *    - Network interceptor
- * 
- * 3. Runners:
- *    - Copart runner
- *    - IAAI runner
- * 
- * 4. Data Flow:
- *    Parser → Raw Storage → Normalize → Dedup (VIN) → Vehicle → Activity → Dashboard
  */
 @Module({
   imports: [
@@ -58,7 +38,7 @@ import { IAAIRunner } from './runners/iaai.runner';
       { name: Vehicle.name, schema: VehicleSchema },
     ]),
   ],
-  controllers: [IngestionController],
+  controllers: [IngestionController, ProxyAdminController],
   providers: [
     // Core services
     IngestionService,
@@ -84,6 +64,7 @@ import { IAAIRunner } from './runners/iaai.runner';
     IAAIRunner,
     ParserHealthService,
     CircuitBreakerService,
+    EnhancedProxyPoolService,
   ],
 })
 export class IngestionModule {}

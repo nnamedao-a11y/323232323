@@ -12,6 +12,7 @@ import Tasks from './pages/Tasks';
 import Staff from './pages/Staff';
 import Settings from './pages/Settings';
 import Documents from './pages/Documents';
+import ProxySettings from './pages/ProxySettings';
 import Layout from './components/Layout';
 import './App.css';
 
@@ -113,6 +114,7 @@ function App() {
             <Route path="staff" element={<Staff />} />
             <Route path="documents" element={<Documents />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="proxy-settings" element={<ProxySettings />} />
           </Route>
         </Routes>
       </AuthProvider>

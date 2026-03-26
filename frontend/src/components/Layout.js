@@ -12,7 +12,8 @@ import {
   Gear, 
   SignOut,
   Bell,
-  FileText
+  FileText,
+  Globe
 } from '@phosphor-icons/react';
 
 const Layout = () => {
@@ -24,7 +25,8 @@ const Layout = () => {
     navigate('/login');
   };
 
-  const navItems = [
+  // Base nav items for all users
+  const baseNavItems = [
     { path: '/', icon: House, label: 'Дашборд' },
     { path: '/leads', icon: Users, label: 'Ліди' },
     { path: '/customers', icon: UserCircle, label: 'Клієнти' },
@@ -35,6 +37,11 @@ const Layout = () => {
     { path: '/staff', icon: UsersThree, label: 'Команда' },
     { path: '/settings', icon: Gear, label: 'Налаштування' },
   ];
+
+  // Add proxy settings for master_admin only
+  const navItems = user?.role === 'master_admin' 
+    ? [...baseNavItems, { path: '/proxy-settings', icon: Globe, label: 'Проксі' }]
+    : baseNavItems;
 
   const roleLabels = {
     master_admin: 'Головний адмін',
