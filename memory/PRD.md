@@ -45,109 +45,78 @@ Full CRM/Admin platform для автобізнесу з call-center опера�
 - **SLA Tracking** - firstResponseDueAt
 - **Automation Integration** - ASSIGN_MANAGER action
 
-**API:**
-- POST /api/lead-routing/assign/:leadId
-- POST /api/lead-routing/reassign/:leadId
-- GET /api/lead-routing/workload
-- GET /api/lead-routing/history/:leadId
-- CRUD для routing rules
+### ✅ Files & Documents Module (Mar 2026)
+- Files API: upload, download, signed URLs
+- Documents API: create, verify, reject, archive
+- Storage Providers: Local + S3 abstraction
+- Access Control: Admin/Manager/Finance
 
-### ✅ Files & Documents Module (Mar 2026 - NEW)
+### ✅ Master Dashboard v2 (Mar 2026 - NEW)
 
-**Architecture:**
+**Architecture - Control Layer:**
 ```
 modules/
-  files/                          # Infrastructure layer
-    controllers/files.controller.ts
+  dashboard/
+    controllers/dashboard.controller.ts
     services/
-      files.service.ts
-      file-access.service.ts
-    providers/
-      local-storage.provider.ts
-      s3-storage.provider.ts
-      storage-provider.factory.ts
-    schemas/file.schema.ts
-    interfaces/storage-provider.interface.ts
-
-  documents/                      # Business layer
-    controllers/documents.controller.ts
-    services/documents.service.ts
-    schemas/document.schema.ts
-    enums/document.enum.ts
+      dashboard.service.ts          # Orchestrator
+      sla-dashboard.service.ts      # SLA metrics
+      workload-dashboard.service.ts # Manager workload
+      leads-dashboard.service.ts    # Lead flow
+      callbacks-dashboard.service.ts # Call center
+      deposits-dashboard.service.ts # Financial
+      documents-dashboard.service.ts # Documents
+      routing-dashboard.service.ts  # Routing health
+      system-health-dashboard.service.ts # System
+    dto/dashboard-query.dto.ts
+    interfaces/dashboard-response.interface.ts
+    constants/dashboard-cache.constants.ts
 ```
 
-**File Schema:**
-```typescript
-{
-  id, filename, originalName, extension, mimeType, size,
-  storageKey, storageProvider: 's3' | 'local',
-  uploadedBy, relatedTo: { entityType, entityId },
-  tags[], access: 'private' | 'restricted' | 'public',
-  metadata: { checksum, source, note }
-}
-```
+**API:**
+- GET /api/dashboard/master - Головний агрегований endpoint
+- GET /api/dashboard/master?period=day|week|month - Фільтрація по періоду
+- GET /api/dashboard/kpi-summary - Короткий огляд KPI
 
-**Document Types:**
-- contract
-- invoice
-- deposit_proof
-- client_document
-- delivery_document
-- custom
+**Dashboard Sections:**
+1. **SLA Control** - overdueLeads, overdueTasks, overdueCallbacks, avgFirstResponseMinutes, missedSlaRate
+2. **Workload Heatmap** - Manager workload scores, status (ok/busy/overloaded/idle)
+3. **Lead Flow** - new, inProgress, converted, lost, unassigned
+4. **Callback Control** - missedCalls, noAnswerLeads, followUpsDue, smsTriggered
+5. **Deposits Control** - pendingDeposits, depositsWithoutProof, pendingVerification
+6. **Documents Control** - pendingVerification, rejectedCount, uploadedToday
+7. **Routing Health** - fallbackAssignments, reassignmentRate, unassignedLeads
+8. **System Health** - failedJobs, queueBacklog, smsFailures, systemStatus
 
-**Document Statuses:**
-- draft → uploaded → pending_verification → verified/rejected → archived
+**Features:**
+- Redis caching (30 sec TTL)
+- Period filtering (day/week/month)
+- Real-time workload calculation
+- Critical alerts detection
+- System health monitoring
 
-**Verification Flow:**
-1. Upload файл
-2. Створити document з fileIds
-3. Submit for verification
-4. Admin/Finance verify або reject
-5. Notifications + Audit logs
-
-**Files API:**
-- POST /api/files/upload
-- GET /api/files/:id
-- GET /api/files/:id/url (signed URL)
-- DELETE /api/files/:id
-- GET /api/files/entity/:entityType/:entityId
-
-**Documents API:**
-- POST /api/documents
-- GET /api/documents/:id
-- PATCH /api/documents/:id
-- POST /api/documents/:id/attach-files
-- POST /api/documents/:id/submit-for-verification
-- POST /api/documents/:id/verify
-- POST /api/documents/:id/reject
-- POST /api/documents/:id/archive
-- GET /api/documents/queue/pending-verification
-- GET /api/documents/customer/:customerId
-- GET /api/documents/deal/:dealId
-- GET /api/documents/deposit/:depositId
-
-**Storage Providers:**
-- LocalStorageProvider - /app/uploads (dev)
-- S3StorageProvider - AWS S3 compatible (prod)
-
-**Access Control:**
-- Admin: all access
-- Manager: own related files
-- Finance: financial documents only
+**UI Components:**
+- KPI Summary Row (6 critical metrics)
+- Period Selector
+- Critical Alerts Banner
+- Workload Heatmap with status indicators
+- 6 data sections with metrics
 
 ## Test Results (Mar 2026)
 - Backend Lead Routing: 100%
 - Backend Files/Documents: 100%
-- All verification workflows working ✓
+- Backend Master Dashboard v2: 100%
+- Frontend Master Dashboard UI: 95%
+- Integration tests: 100%
 
 ## Backlog
 
 ### P0 - Critical
+- [x] ~~Master Dashboard v2 - Control Layer~~ ✅ DONE
 - [ ] Configure Twilio credentials
 - [ ] Configure S3 for production
 
 ### P1 - High Priority
-- [ ] **Master Dashboard v2** (SLA breaches, workload heatmap, stuck leads)
 - [ ] UI: Document verification panel
 - [ ] UI: File viewer/uploader components
 - [ ] Deposit integration (auto-create deposit_proof document)
@@ -169,7 +138,7 @@ modules/
 2026-03-26
 
 ## Наступні дії
-1. **Master Dashboard v2** - візуалізація навантаження, SLA breaches, pending verification queue
-2. Deposit integration - автоматичне створення deposit_proof при завантаженні
-3. UI components для файлів та документів
-4. Cron jobs для SLA monitoring
+1. **Deposit Auto-Flow** - автоматичне створення deposit_proof при завантаженні
+2. UI components для файлів та документів
+3. Cron jobs для SLA monitoring
+4. Reviews module
