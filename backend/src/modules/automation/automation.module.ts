@@ -8,6 +8,7 @@ import { AutomationRule, AutomationRuleSchema } from './schemas/automation-rule.
 import { AutomationLog, AutomationLogSchema } from './schemas/automation-log.schema';
 import { TasksModule } from '../tasks/tasks.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { LeadRoutingModule } from '../lead-routing/lead-routing.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     BullModule.registerQueue({ name: 'communications' }),
     forwardRef(() => TasksModule),
     forwardRef(() => NotificationsModule),
+    forwardRef(() => LeadRoutingModule),
   ],
   controllers: [AutomationController],
   providers: [AutomationService, AutomationProcessor],

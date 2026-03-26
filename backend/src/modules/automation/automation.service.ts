@@ -9,6 +9,7 @@ import { AutomationTrigger, AutomationAction, NotificationType, CommunicationCha
 import { generateId, toObjectResponse, toArrayResponse } from '../../shared/utils';
 import { TasksService } from '../tasks/tasks.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { LeadRoutingService } from '../lead-routing/services/lead-routing.service';
 
 interface TriggerEvent {
   trigger: AutomationTrigger;
@@ -29,6 +30,7 @@ export class AutomationService {
     @InjectQueue('communications') private communicationsQueue: Queue,
     private tasksService: TasksService,
     private notificationsService: NotificationsService,
+    @Inject(forwardRef(() => LeadRoutingService)) private leadRoutingService: LeadRoutingService,
   ) {}
 
   // Викликається при події в системі
@@ -220,6 +222,33 @@ export class AutomationService {
           this.logger.log(`Email queued for ${event.data.email}`);
           return { success: true, data: { queued: true, email: event.data.email } };
 
+        case AutomationAction.ASSIGN_MANAGER:
+          // Auto-assign lead to manager via routing engine
+          if (event.entityType !== 'lead') {
+            return { success: false, error: 'ASSIGN_MANAGER only works for leads' };
+          }
+          
+          try {
+            const assignResult = await this.leadRoutingService.assignLead(event.entityId);
+            if (assignResult.success) {
+              this.logger.log(`Lead ${event.entityId} assigned to ${assignResult.managerId} via ${assignResult.strategy}`);
+              return { 
+                success: true, 
+                data: { 
+                  managerId: assignResult.managerId,
+                  managerName: assignResult.managerName,
+                  strategy: assignResult.strategy,
+                } 
+              };
+            } else {
+              this.logger.warn(`Lead assignment failed: ${assignResult.reason}`);
+              return { success: false, error: assignResult.reason };
+            }
+          } catch (routingError) {
+            this.logger.error(`Lead routing error: ${routingError.message}`);
+            return { success: false, error: routingError.message };
+          }
+
         default:
           this.logger.warn(`Unknown action: ${action}`);
           return { success: false, error: `Unknown action: ${action}` };
@@ -280,13 +309,13 @@ export class AutomationService {
     const defaultRules = [
       // === LEAD LIFECYCLE ===
       {
-        name: 'Новий лід - створити задачу на дзвінок',
-        description: 'Коли створюється новий лід, автоматично створюється задача зателефонувати протягом 10 хвилин',
+        name: 'Новий лід - авто-призначення менеджера',
+        description: 'Коли створюється новий лід, автоматично призначається менеджер через routing engine',
         trigger: AutomationTrigger.LEAD_CREATED,
         actions: [
           {
-            action: AutomationAction.SCHEDULE_CALLBACK,
-            params: { delayMinutes: 10 }
+            action: AutomationAction.ASSIGN_MANAGER,
+            params: {}
           },
           {
             action: AutomationAction.SEND_NOTIFICATION,

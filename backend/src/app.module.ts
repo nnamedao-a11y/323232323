@@ -23,6 +23,7 @@ import { AutomationModule } from './modules/automation/automation.module';
 import { CallCenterModule } from './modules/call-center/call-center.module';
 import { CommunicationsModule } from './modules/communications/communications.module';
 import { ExportModule } from './modules/export/export.module';
+import { LeadRoutingModule } from './modules/lead-routing/lead-routing.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { ExportModule } from './modules/export/export.module';
     CallCenterModule,
     CommunicationsModule,
     ExportModule,
+    LeadRoutingModule,
   ],
 })
 export class AppModule {}

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 import { generateId } from '../shared/utils';
 import { 
   UserRole, 
@@ -30,6 +30,8 @@ interface SeedResult {
   messageTemplates: number;
   settings: number;
 }
+
+export { SeedResult };
 
 @Injectable()
 export class SeedService {
@@ -385,29 +387,33 @@ export class SeedService {
 
     const settings = {
       id: generateId(),
-      companyName: 'AutoCRM',
-      defaultLanguage: 'uk',
-      timezone: 'Europe/Sofia', // Bulgaria
-      currency: 'USD',
-      workingHours: {
-        start: '09:00',
-        end: '18:00',
-        timezone: 'Europe/Sofia',
-      },
-      notifications: {
-        emailEnabled: true,
-        smsEnabled: true,
-        pushEnabled: false,
-      },
-      automation: {
-        enabled: true,
-        maxRetries: 3,
-        retryDelayMinutes: [5, 15, 30],
-      },
-      sms: {
-        provider: 'twilio',
-        defaultCountryCode: '+359', // Bulgaria
-        senderName: 'AutoCRM',
+      key: 'system_settings',
+      description: 'Main system settings',
+      value: {
+        companyName: 'AutoCRM',
+        defaultLanguage: 'uk',
+        timezone: 'Europe/Sofia', // Bulgaria
+        currency: 'USD',
+        workingHours: {
+          start: '09:00',
+          end: '18:00',
+          timezone: 'Europe/Sofia',
+        },
+        notifications: {
+          emailEnabled: true,
+          smsEnabled: true,
+          pushEnabled: false,
+        },
+        automation: {
+          enabled: true,
+          maxRetries: 3,
+          retryDelayMinutes: [5, 15, 30],
+        },
+        sms: {
+          provider: 'twilio',
+          defaultCountryCode: '+359', // Bulgaria
+          senderName: 'AutoCRM',
+        },
       },
     };
 
@@ -430,7 +436,7 @@ export class SeedService {
     const statuses = Object.values(LeadStatus);
     const contactStatuses = Object.values(ContactStatus);
 
-    const leads = [];
+    const leads: any[] = [];
     for (let i = 0; i < count; i++) {
       leads.push({
         id: generateId(),

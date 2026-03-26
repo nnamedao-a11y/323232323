@@ -70,6 +70,9 @@ export enum AutomationTrigger {
   DEPOSIT_PENDING = 'deposit_pending',
   NO_RESPONSE_24H = 'no_response_24h',
   NO_RESPONSE_48H = 'no_response_48h',
+  // Routing triggers
+  LEAD_FIRST_RESPONSE_OVERDUE = 'lead_first_response_overdue',
+  LEAD_REASSIGNED = 'lead_reassigned',
 }
 
 // Automation Action

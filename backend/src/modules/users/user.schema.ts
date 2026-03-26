@@ -52,6 +52,37 @@ export class User extends Document {
 
   @Prop({ default: false })
   isDeleted: boolean;
+
+  // === ASSIGNMENT FIELDS ===
+  @Prop({ type: Boolean, default: true })
+  isAvailableForAssignment: boolean;
+
+  @Prop({ type: Number })
+  assignmentPriority?: number;
+
+  @Prop({ type: [String], default: [] })
+  supportedMarkets: string[];
+
+  @Prop({ type: [String], default: [] })
+  supportedLanguages: string[];
+
+  @Prop({ type: [String], default: [] })
+  supportedLeadSources: string[];
+
+  @Prop({ type: Number })
+  maxActiveLeads?: number;
+
+  @Prop({ type: Number, default: 0 })
+  currentActiveLeads: number;
+
+  @Prop({ type: Number, default: 0 })
+  currentOpenTasks: number;
+
+  @Prop({ type: Number, default: 0 })
+  currentOverdueTasks: number;
+
+  @Prop()
+  lastAssignedAt?: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
@@ -60,3 +91,5 @@ export const UserSchema = SchemaFactory.createForClass(User);
 UserSchema.index({ email: 1 });
 UserSchema.index({ role: 1 });
 UserSchema.index({ isActive: 1 });
+UserSchema.index({ isAvailableForAssignment: 1, isActive: 1 });
+UserSchema.index({ lastAssignedAt: 1 });

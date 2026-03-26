@@ -36,6 +36,27 @@ export class Lead extends Document {
   assignedTo?: string;
 
   @Prop()
+  assignedAt?: Date;
+
+  @Prop()
+  assignmentStrategy?: string;
+
+  @Prop()
+  assignmentReason?: string;
+
+  @Prop({ type: Number, default: 0 })
+  reassignedCount: number;
+
+  @Prop()
+  firstResponseDueAt?: Date;
+
+  @Prop()
+  firstResponseAt?: Date;
+
+  @Prop({ type: Boolean, default: false })
+  isOverdueForFirstResponse: boolean;
+
+  @Prop()
   description?: string;
 
   @Prop({ type: Number, default: 0 })
@@ -93,6 +114,7 @@ LeadSchema.index({ status: 1 });
 LeadSchema.index({ contactStatus: 1 });
 LeadSchema.index({ source: 1 });
 LeadSchema.index({ assignedTo: 1 });
+LeadSchema.index({ isOverdueForFirstResponse: 1, firstResponseDueAt: 1 });
 LeadSchema.index({ email: 1 });
 LeadSchema.index({ createdAt: -1 });
 LeadSchema.index({ nextFollowUpAt: 1 });
