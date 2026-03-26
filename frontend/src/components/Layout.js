@@ -44,7 +44,7 @@ const Layout = () => {
   
   // Add extra items for master_admin only
   const navItems = user?.role === 'master_admin' 
-    ? [...baseNavItems, parserNavItem, { path: '/proxy-settings', icon: Globe, label: 'Проксі (old)' }]
+    ? [...baseNavItems, parserNavItem]
     : user?.role === 'moderator'
     ? [...baseNavItems, parserNavItem]
     : baseNavItems;
