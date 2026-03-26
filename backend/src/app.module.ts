@@ -24,6 +24,8 @@ import { CallCenterModule } from './modules/call-center/call-center.module';
 import { CommunicationsModule } from './modules/communications/communications.module';
 import { ExportModule } from './modules/export/export.module';
 import { LeadRoutingModule } from './modules/lead-routing/lead-routing.module';
+import { FilesModule } from './modules/files/files.module';
+import { DocumentsModule } from './modules/documents/documents.module';
 
 @Module({
   imports: [
@@ -62,6 +64,8 @@ import { LeadRoutingModule } from './modules/lead-routing/lead-routing.module';
     CommunicationsModule,
     ExportModule,
     LeadRoutingModule,
+    FilesModule,
+    DocumentsModule,
   ],
 })
 export class AppModule {}
