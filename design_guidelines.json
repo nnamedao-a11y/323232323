@@ -1,0 +1,88 @@
+{
+  "theme": "light",
+  "archetype": "4 (Swiss & High-Contrast)",
+  "design_philosophy": "Authority, clarity, and function-first. The UI must be highly legible and data-dense, employing the 'Control Room' bento grid pattern. Avoid generic SaaS look by utilizing brutalist-inspired 1px solid borders, zero decorative shadows, and high contrast monochromatic structures with color reserved strictly for statuses (success/error/warning).",
+  "colors": {
+    "background": "#F7F7F8",
+    "surface": "#FFFFFF",
+    "primary": "#0A0A0B",
+    "primary_foreground": "#FFFFFF",
+    "secondary": "#E4E4E7",
+    "secondary_foreground": "#18181B",
+    "border": "#D4D4D8",
+    "muted": "#F4F4F5",
+    "muted_foreground": "#71717A",
+    "accent_blue": "#0055FF",
+    "status": {
+      "success": "#16A34A",
+      "warning": "#EAB308",
+      "error": "#DC2626",
+      "info": "#2563EB"
+    }
+  },
+  "typography": {
+    "heading_font": "Cabinet Grotesk, sans-serif",
+    "body_font": "IBM Plex Sans, sans-serif",
+    "scale": {
+      "h1": "text-3xl font-bold tracking-tight",
+      "h2": "text-2xl font-semibold tracking-tight",
+      "h3": "text-xl font-medium",
+      "body": "text-sm leading-relaxed",
+      "small": "text-xs font-medium uppercase tracking-widest",
+      "metrics": "text-4xl font-black tracking-tighter"
+    },
+    "rules": [
+      "No Inter or Roboto for headings.",
+      "Metrics and KPIs must use large, bold, tightly tracked typography.",
+      "Labels must be uppercase with wide tracking for optical separation.",
+      "Text contrast must meet APCA or WCAG AA (4.5:1) minimum."
+    ]
+  },
+  "layout_and_spacing": {
+    "grid_system": "MODE B: THE CONTROL ROOM GRID (Dashboards/Analytics)",
+    "rules": [
+      "Use dense, compact spacing for tables and lists (p-2 to p-4).",
+      "Cards and widgets must have strict 1px solid borders (border-zinc-300).",
+      "Use F-pattern scanning layout with a left sidebar.",
+      "Every pixel utilized in the bento grid: use h-full to stretch children."
+    ]
+  },
+  "components": {
+    "surfaces": "Grid Borders: Flat solid backgrounds with sharp 1px borders. Max border-radius: 4px (rounded-sm) or 0px (rounded-none).",
+    "buttons": "High contrast black/white or strong accent blue. No soft shadows. Solid color changes on hover.",
+    "tables": "Dense rows, left-aligned data, right-aligned numbers. 1px bottom border per row. Alternating row colors are banned; use pure white with hover states.",
+    "inputs": "Shadcn based, but override to 0px or 4px radius with strong border focus rings.",
+    "navigation": "Left vertical sidebar, highly structured. Selected state highlighted with a thick left border or solid background."
+  },
+  "motion": {
+    "rules": [
+      "Minimalist animations.",
+      "Use quick transitions (150ms) for hover states, no bouncy spring animations.",
+      "Focus rings must snap instantly."
+    ]
+  },
+  "icons": {
+    "library": "@phosphor-icons/react",
+    "style": "Regular or Bold weight, avoid Duotone for data-heavy apps to keep it sharp and readable."
+  },
+  "images": {
+    "user_avatar": {
+      "url": "https://images.unsplash.com/photo-1629507313712-f21468afdf2e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzJ8MHwxfHNlYXJjaHwyfHxidXNpbmVzcyUyMHByb2Zlc3Npb25hbCUyMHBvcnRyYWl0fGVufDB8fHx8MTc3NDUyNTY3N3ww&ixlib=rb-4.1.0&q=85",
+      "description": "Professional avatar for user profile in the dashboard header/sidebar."
+    },
+    "brand_logo": {
+      "url": "https://images.unsplash.com/photo-1763296840082-cac05bc18337?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2ODl8MHwxfHNlYXJjaHwxfHxjYXIlMjBicmFuZCUyMGxvZ28lMjBtaW5pbWFsfGVufDB8fHx8MTc3NDUyNTcwNnww&ixlib=rb-4.1.0&q=85",
+      "description": "Minimal car logo to use as the CRM branding in the sidebar/login page."
+    }
+  },
+  "instructions_to_main_agent": [
+    "ALL text and UI copy MUST be in Ukrainian (e.g., 'Ліди', 'Клієнти', 'Угоди', 'Налаштування').",
+    "Use raw HTML/Tailwind for layout structure but heavily customize Shadcn UI components for complex interactions.",
+    "CRITICAL: Add 'data-testid' attributes to ALL interactive elements, buttons, inputs, tables, and key informational nodes using kebab-case role-based naming (e.g., data-testid='create-lead-button', data-testid='leads-table').",
+    "Implement the 'Control Room Grid' for the dashboard: grid-cols-1 md:grid-cols-3 lg:grid-cols-4 with gap-4 or gap-6. Stretch children using h-full.",
+    "Override Shadcn default styles to match the Swiss High-Contrast theme: remove excessive border-radius (max rounded-sm), remove shadows, enforce 1px solid borders.",
+    "Do NOT use HTML <select> or <input type='date'>. Always use Shadcn Dropdown/Select and Calendar.",
+    "Run 'yarn add @phosphor-icons/react' to install the required icon library.",
+    "Make sure to use .js files for React components as required."
+  ]
+}

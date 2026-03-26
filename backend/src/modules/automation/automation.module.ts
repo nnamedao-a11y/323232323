@@ -1,0 +1,32 @@
+import { Module, forwardRef, OnModuleInit } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+import { BullModule } from '@nestjs/bull';
+import { AutomationService } from './automation.service';
+import { AutomationController } from './automation.controller';
+import { AutomationProcessor } from './automation.processor';
+import { AutomationRule, AutomationRuleSchema } from './schemas/automation-rule.schema';
+import { AutomationLog, AutomationLogSchema } from './schemas/automation-log.schema';
+import { TasksModule } from '../tasks/tasks.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+
+@Module({
+  imports: [
+    MongooseModule.forFeature([
+      { name: AutomationRule.name, schema: AutomationRuleSchema },
+      { name: AutomationLog.name, schema: AutomationLogSchema },
+    ]),
+    BullModule.registerQueue({ name: 'automation' }),
+    forwardRef(() => TasksModule),
+    forwardRef(() => NotificationsModule),
+  ],
+  controllers: [AutomationController],
+  providers: [AutomationService, AutomationProcessor],
+  exports: [AutomationService],
+})
+export class AutomationModule implements OnModuleInit {
+  constructor(private automationService: AutomationService) {}
+
+  async onModuleInit() {
+    await this.automationService.bootstrapDefaultRules();
+  }
+}

@@ -1,0 +1,216 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@400,500,700,800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #F7F7F8;
+  --surface: #FFFFFF;
+  --primary: #0A0A0B;
+  --primary-foreground: #FFFFFF;
+  --secondary: #E4E4E7;
+  --secondary-foreground: #18181B;
+  --border: #D4D4D8;
+  --muted: #F4F4F5;
+  --muted-foreground: #71717A;
+  --accent-blue: #0055FF;
+  --success: #16A34A;
+  --warning: #EAB308;
+  --error: #DC2626;
+  --info: #2563EB;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'IBM Plex Sans', sans-serif;
+  background-color: var(--background);
+  color: var(--primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Cabinet Grotesk', sans-serif;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--muted);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+/* Override Shadcn defaults for Swiss High-Contrast theme */
+.rounded-lg {
+  border-radius: 4px !important;
+}
+
+.rounded-md {
+  border-radius: 4px !important;
+}
+
+.shadow-sm, .shadow-md, .shadow-lg {
+  box-shadow: none !important;
+}
+
+/* Table styles */
+.crm-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.crm-table th {
+  text-align: left;
+  padding: 12px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted-foreground);
+  background: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.crm-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.crm-table tr:hover td {
+  background-color: var(--muted);
+}
+
+/* Status badges */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  border-radius: 2px;
+}
+
+.status-new { background: #DBEAFE; color: #1E40AF; }
+.status-contacted { background: #FEF3C7; color: #92400E; }
+.status-qualified { background: #D1FAE5; color: #065F46; }
+.status-proposal { background: #E0E7FF; color: #3730A3; }
+.status-negotiation { background: #FCE7F3; color: #9D174D; }
+.status-won { background: #D1FAE5; color: #065F46; }
+.status-lost { background: #FEE2E2; color: #991B1B; }
+.status-archived { background: #F4F4F5; color: #71717A; }
+
+/* KPI cards */
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 20px;
+  height: 100%;
+}
+
+.kpi-value {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-size: 2.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.kpi-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted-foreground);
+  margin-top: 8px;
+}
+
+/* Sidebar */
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: all 150ms;
+}
+
+.sidebar-item:hover {
+  background: var(--muted);
+  color: var(--primary);
+}
+
+.sidebar-item.active {
+  background: var(--muted);
+  color: var(--primary);
+  border-left-color: var(--primary);
+}
+
+/* Form inputs override */
+input, select, textarea {
+  border-radius: 4px !important;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  ring: 2px;
+  ring-color: var(--accent-blue);
+}
+
+/* Button overrides */
+.btn-primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 150ms;
+}
+
+.btn-primary:hover {
+  background: #27272A;
+}
+
+.btn-secondary {
+  background: var(--surface);
+  color: var(--primary);
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 150ms;
+}
+
+.btn-secondary:hover {
+  background: var(--muted);
+}
