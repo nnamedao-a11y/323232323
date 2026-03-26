@@ -18,17 +18,29 @@ import { VehicleQueryDto } from '../dto/vehicle-query.dto';
 import { VehicleStatus } from '../enums/vehicle.enum';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
+// Runners
+import { CopartRunner } from '../runners/copart.runner';
+import { IAAIRunner } from '../runners/iaai.runner';
+
+// Antiblock
+import { ParserHealthService, CircuitBreakerService } from '../antiblock';
+
 /**
  * Parser Webhook Controller
  * 
  * Публічні endpoints для прийому даних від парсерів
  * Приватні endpoints для управління vehicles
+ * Runner endpoints для запуску парсерів
  */
 @Controller('ingestion')
 export class IngestionController {
   constructor(
     private readonly ingestionService: IngestionService,
     private readonly vehicleService: VehicleService,
+    private readonly copartRunner: CopartRunner,
+    private readonly iaaiRunner: IAAIRunner,
+    private readonly parserHealth: ParserHealthService,
+    private readonly circuitBreaker: CircuitBreakerService,
   ) {}
 
   // ==================== WEBHOOK ENDPOINTS (PUBLIC) ====================
@@ -192,5 +204,97 @@ export class IngestionController {
   @HttpCode(HttpStatus.OK)
   async reprocessFailed(@Body() body: { limit?: number }) {
     return await this.ingestionService.reprocessFailed(body.limit);
+  }
+
+  // ==================== RUNNER ENDPOINTS ====================
+
+  /**
+   * GET /api/ingestion/runners/status
+   * 
+   * Статус всіх runners
+   */
+  @Get('runners/status')
+  @UseGuards(JwtAuthGuard)
+  async getRunnersStatus() {
+    return {
+      copart: this.copartRunner.getStatus(),
+      iaai: this.iaaiRunner.getStatus(),
+      health: this.parserHealth.getSummary(),
+      circuitBreakers: this.circuitBreaker.getAllStates(),
+    };
+  }
+
+  /**
+   * POST /api/ingestion/runners/copart/run
+   * 
+   * Запустити Copart parser вручну
+   */
+  @Post('runners/copart/run')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async runCopart() {
+    return await this.copartRunner.runManual();
+  }
+
+  /**
+   * POST /api/ingestion/runners/iaai/run
+   * 
+   * Запустити IAAI parser вручну
+   */
+  @Post('runners/iaai/run')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async runIAAI() {
+    return await this.iaaiRunner.runManual();
+  }
+
+  /**
+   * POST /api/ingestion/runners/all/run
+   * 
+   * Запустити всі parsers
+   */
+  @Post('runners/all/run')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async runAll() {
+    const copartResult = await this.copartRunner.runManual();
+    const iaaiResult = await this.iaaiRunner.runManual();
+    
+    return {
+      copart: copartResult,
+      iaai: iaaiResult,
+    };
+  }
+
+  /**
+   * GET /api/ingestion/health
+   * 
+   * Parser health dashboard
+   */
+  @Get('health')
+  @UseGuards(JwtAuthGuard)
+  async getHealthDashboard() {
+    return {
+      parsers: this.parserHealth.getAllHealth(),
+      summary: this.parserHealth.getSummary(),
+      circuitBreakers: this.circuitBreaker.getAllStates(),
+    };
+  }
+
+  /**
+   * POST /api/ingestion/circuit-breaker/reset
+   * 
+   * Reset circuit breaker для парсера
+   */
+  @Post('circuit-breaker/reset')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async resetCircuitBreaker(@Body() body: { parserId?: string }) {
+    if (body.parserId) {
+      this.circuitBreaker.reset(body.parserId);
+    } else {
+      this.circuitBreaker.resetAll();
+    }
+    return { success: true };
   }
 }
