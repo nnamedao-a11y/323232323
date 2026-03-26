@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API_URL } from '../App';
+import { motion } from 'framer-motion';
 import { 
   Users, 
   UserCircle, 
@@ -19,7 +20,9 @@ import {
   Gauge,
   ShieldCheck,
   Heartbeat,
-  CaretDown
+  CaretDown,
+  ArrowUp,
+  ArrowDown
 } from '@phosphor-icons/react';
 
 const Dashboard = () => {
@@ -46,7 +49,7 @@ const Dashboard = () => {
   if (loading || !masterData) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-2 border-[#0A0A0B] border-t-transparent rounded-full"></div>
+        <div className="animate-spin w-8 h-8 border-2 border-[#4F46E5] border-t-transparent rounded-full"></div>
       </div>
     );
   }
@@ -64,120 +67,140 @@ const Dashboard = () => {
   ].filter(Boolean);
 
   const periodLabels = {
-    day: 'За сьогодні',
-    week: 'За тиждень',
-    month: 'За місяць',
+    day: 'Сьогодні',
+    week: 'Тиждень',
+    month: 'Місяць',
+  };
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.05 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 }
   };
 
   return (
-    <div data-testid="master-dashboard-page">
+    <motion.div 
+      data-testid="master-dashboard-page"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <motion.div variants={itemVariants} className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight" style={{ fontFamily: 'Cabinet Grotesk, sans-serif' }}>
+          <h1 className="text-3xl font-medium tracking-tight text-white font-heading">
             Control Dashboard
           </h1>
-          <p className="text-sm text-[#71717A] mt-1">
+          <p className="text-sm text-[#64748B] mt-1">
             Оновлено: {new Date(masterData.generatedAt).toLocaleString('uk-UA')}
           </p>
         </div>
         
         {/* Period Selector */}
-        <div className="flex items-center gap-2" data-testid="period-selector">
+        <div className="period-tabs" data-testid="period-selector">
           {['day', 'week', 'month'].map((p) => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
-              className={`px-4 py-2 text-sm font-medium transition-all ${
-                period === p
-                  ? 'bg-[#0A0A0B] text-white'
-                  : 'bg-white border border-[#D4D4D8] hover:bg-[#F4F4F5]'
-              }`}
+              className={`period-tab ${period === p ? 'active' : ''}`}
               data-testid={`period-${p}`}
             >
               {periodLabels[p]}
             </button>
           ))}
         </div>
-      </div>
+      </motion.div>
 
       {/* Critical Alerts */}
       {criticalAlerts.length > 0 && (
-        <div className="bg-[#FEE2E2] border border-[#DC2626] p-4 mb-6" data-testid="critical-alerts">
-          <div className="flex items-center gap-2 mb-2">
-            <Warning size={20} weight="fill" className="text-[#DC2626]" />
-            <span className="text-sm font-bold text-[#DC2626] uppercase tracking-wide">
+        <motion.div 
+          variants={itemVariants}
+          className="card-premium bg-[#EF4444]/10 border-[#EF4444]/30 p-5 mb-6"
+          data-testid="critical-alerts"
+        >
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-[#EF4444]/20 rounded-xl flex items-center justify-center">
+              <Warning size={20} weight="fill" className="text-[#EF4444]" />
+            </div>
+            <span className="text-sm font-semibold text-[#EF4444] uppercase tracking-wide">
               Критичні сповіщення ({criticalAlerts.length})
             </span>
           </div>
-          <ul className="space-y-1">
+          <ul className="space-y-1 ml-[52px]">
             {criticalAlerts.map((alert, i) => (
-              <li key={i} className="text-sm text-[#991B1B]">• {alert}</li>
+              <li key={i} className="text-sm text-[#FCA5A5]">• {alert}</li>
             ))}
           </ul>
-        </div>
+        </motion.div>
       )}
 
       {/* KPI Summary Row */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6" data-testid="kpi-summary-row">
+      <motion.div 
+        variants={itemVariants}
+        className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6" 
+        data-testid="kpi-summary-row"
+      >
         <KpiCard 
           icon={Users} 
           label="Нові ліди" 
           value={leads.newCount} 
-          color="#0055FF" 
-          bgColor="#DBEAFE"
+          glowClass="glow-blue"
         />
         <KpiCard 
           icon={Warning} 
           label="Прострочені" 
           value={sla.overdueLeads} 
-          color="#DC2626" 
-          bgColor="#FEE2E2"
-          alert={sla.overdueLeads > 5}
+          glowClass="glow-red"
+          alert={sla.overdueLeads > 0}
         />
         <KpiCard 
           icon={Wallet} 
           label="Pending депозити" 
           value={deposits.pendingDeposits} 
-          color="#7C3AED" 
-          bgColor="#EDE9FE"
+          glowClass="glow-violet"
         />
         <KpiCard 
           icon={FileText} 
           label="На верифікацію" 
           value={documents.pendingVerification} 
-          color="#F59E0B" 
-          bgColor="#FEF3C7"
+          glowClass="glow-amber"
           alert={documents.pendingVerification > 5}
         />
         <KpiCard 
           icon={UserCircle} 
           label="Перевантажені" 
           value={workload.overloadedManagers} 
-          color="#DC2626" 
-          bgColor="#FEE2E2"
+          glowClass={workload.overloadedManagers > 0 ? "glow-red" : "glow-emerald"}
           alert={workload.overloadedManagers > 0}
         />
         <KpiCard 
           icon={Lightning} 
           label="Failed Jobs" 
           value={system.failedJobs} 
-          color={system.failedJobs > 0 ? '#DC2626' : '#16A34A'} 
-          bgColor={system.failedJobs > 0 ? '#FEE2E2' : '#D1FAE5'}
+          glowClass={system.failedJobs > 0 ? "glow-red" : "glow-emerald"}
         />
-      </div>
+      </motion.div>
 
-      {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Main Grid - Row 1 */}
+      <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
         {/* SLA Control */}
-        <div className="bg-white border border-[#D4D4D8] p-5 h-full" data-testid="sla-control">
-          <div className="flex items-center gap-2 mb-4">
-            <Clock size={20} weight="bold" className="text-[#DC2626]" />
-            <h3 className="text-lg font-semibold" style={{ fontFamily: 'Cabinet Grotesk, sans-serif' }}>
+        <div className="card-premium" data-testid="sla-control">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-10 h-10 bg-[#EF4444]/10 rounded-xl flex items-center justify-center">
+              <Clock size={20} weight="bold" className="text-[#EF4444]" />
+            </div>
+            <h3 className="text-lg font-medium text-white font-heading">
               SLA Control
             </h3>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-4">
             <MetricRow 
               label="Прострочені ліди" 
               value={sla.overdueLeads} 
@@ -207,18 +230,20 @@ const Dashboard = () => {
         </div>
 
         {/* Lead Flow */}
-        <div className="bg-white border border-[#D4D4D8] p-5 h-full" data-testid="lead-flow">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendUp size={20} weight="bold" className="text-[#0055FF]" />
-            <h3 className="text-lg font-semibold" style={{ fontFamily: 'Cabinet Grotesk, sans-serif' }}>
+        <div className="card-premium" data-testid="lead-flow">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-10 h-10 bg-[#4F46E5]/10 rounded-xl flex items-center justify-center">
+              <TrendUp size={20} weight="bold" className="text-[#818CF8]" />
+            </div>
+            <h3 className="text-lg font-medium text-white font-heading">
               Lead Flow
             </h3>
           </div>
-          <div className="space-y-3">
-            <MetricRow label="Нові" value={leads.newCount} color="#0055FF" />
-            <MetricRow label="В роботі" value={leads.inProgressCount} color="#F59E0B" />
-            <MetricRow label="Конвертовані" value={leads.convertedCount} color="#16A34A" />
-            <MetricRow label="Втрачені" value={leads.lostCount} color="#DC2626" />
+          <div className="space-y-4">
+            <MetricRow label="Нові" value={leads.newCount} color="text-[#818CF8]" />
+            <MetricRow label="В роботі" value={leads.inProgressCount} color="text-[#FBBF24]" />
+            <MetricRow label="Конвертовані" value={leads.convertedCount} color="text-[#34D399]" />
+            <MetricRow label="Втрачені" value={leads.lostCount} color="text-[#F87171]" />
             <MetricRow 
               label="Без менеджера" 
               value={leads.unassignedCount} 
@@ -228,14 +253,16 @@ const Dashboard = () => {
         </div>
 
         {/* Callback Control */}
-        <div className="bg-white border border-[#D4D4D8] p-5 h-full" data-testid="callback-control">
-          <div className="flex items-center gap-2 mb-4">
-            <Phone size={20} weight="bold" className="text-[#7C3AED]" />
-            <h3 className="text-lg font-semibold" style={{ fontFamily: 'Cabinet Grotesk, sans-serif' }}>
+        <div className="card-premium" data-testid="callback-control">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-10 h-10 bg-[#8B5CF6]/10 rounded-xl flex items-center justify-center">
+              <Phone size={20} weight="bold" className="text-[#A78BFA]" />
+            </div>
+            <h3 className="text-lg font-medium text-white font-heading">
               Callback Control
             </h3>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-4">
             <MetricRow 
               label="Missed Calls" 
               value={callbacks.missedCalls} 
@@ -252,92 +279,100 @@ const Dashboard = () => {
               alert={callbacks.followUpsDue > 0}
             />
             <MetricRow label="Callback заплановано" value={callbacks.callbacksScheduled} />
-            <MetricRow label="SMS відправлено" value={callbacks.smsTriggered} color="#0055FF" />
+            <MetricRow label="SMS відправлено" value={callbacks.smsTriggered} color="text-[#818CF8]" />
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Second Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+      {/* Main Grid - Row 2 */}
+      <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Workload Heatmap */}
-        <div className="bg-white border border-[#D4D4D8] p-5" data-testid="workload-heatmap">
-          <div className="flex items-center gap-2 mb-4">
-            <Gauge size={20} weight="bold" className="text-[#F59E0B]" />
-            <h3 className="text-lg font-semibold" style={{ fontFamily: 'Cabinet Grotesk, sans-serif' }}>
-              Workload ({workload.totalManagers} менеджерів)
+        <div className="card-premium" data-testid="workload-heatmap">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-10 h-10 bg-[#F59E0B]/10 rounded-xl flex items-center justify-center">
+              <Gauge size={20} weight="bold" className="text-[#FBBF24]" />
+            </div>
+            <h3 className="text-lg font-medium text-white font-heading">
+              Workload <span className="text-[#64748B] font-normal text-sm">({workload.totalManagers})</span>
             </h3>
           </div>
-          <div className="space-y-2 max-h-48 overflow-y-auto">
+          <div className="space-y-2 max-h-52 overflow-y-auto pr-2">
             {workload.managers.map((manager) => (
               <div 
                 key={manager.managerId}
-                className={`flex items-center justify-between p-2 ${getWorkloadBg(manager.status)}`}
+                className={`flex items-center justify-between p-3 rounded-xl ${getWorkloadBg(manager.status)}`}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <StatusDot status={manager.status} />
-                  <span className="text-sm font-medium truncate max-w-[120px]">{manager.name}</span>
+                  <span className="text-sm font-medium text-white truncate max-w-[100px]">{manager.name}</span>
                 </div>
-                <div className="flex items-center gap-3 text-xs">
-                  <span title="Активні ліди">{manager.activeLeads} лідів</span>
-                  <span title="Задачі">{manager.openTasks} задач</span>
-                  <span className="font-bold">Score: {manager.score}</span>
+                <div className="flex items-center gap-4 text-xs text-[#94A3B8]">
+                  <span>{manager.activeLeads} лідів</span>
+                  <span>{manager.openTasks} задач</span>
+                  <span className="font-semibold text-white bg-white/10 px-2 py-1 rounded-lg">
+                    {manager.score}
+                  </span>
                 </div>
               </div>
             ))}
             {workload.managers.length === 0 && (
-              <p className="text-sm text-[#71717A]">Немає активних менеджерів</p>
+              <p className="text-sm text-[#64748B] text-center py-4">Немає активних менеджерів</p>
             )}
           </div>
         </div>
 
         {/* Deposits & Documents */}
-        <div className="bg-white border border-[#D4D4D8] p-5" data-testid="deposits-docs">
-          <div className="flex items-center gap-2 mb-4">
-            <Wallet size={20} weight="bold" className="text-[#16A34A]" />
-            <h3 className="text-lg font-semibold" style={{ fontFamily: 'Cabinet Grotesk, sans-serif' }}>
+        <div className="card-premium" data-testid="deposits-docs">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-10 h-10 bg-[#10B981]/10 rounded-xl flex items-center justify-center">
+              <Wallet size={20} weight="bold" className="text-[#34D399]" />
+            </div>
+            <h3 className="text-lg font-medium text-white font-heading">
               Депозити & Документи
             </h3>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-6">
             <div>
-              <span className="text-xs font-semibold uppercase tracking-wide text-[#71717A]">Депозити</span>
-              <div className="space-y-2 mt-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-[#64748B] mb-3">Депозити</p>
+              <div className="space-y-3">
                 <MetricRow label="Pending" value={deposits.pendingDeposits} />
                 <MetricRow 
                   label="Без proof" 
                   value={deposits.depositsWithoutProof} 
                   alert={deposits.depositsWithoutProof > 0}
                 />
-                <MetricRow label="Верифіковано" value={deposits.verifiedToday} color="#16A34A" />
+                <MetricRow label="Верифіковано" value={deposits.verifiedToday} color="text-[#34D399]" />
               </div>
             </div>
             <div>
-              <span className="text-xs font-semibold uppercase tracking-wide text-[#71717A]">Документи</span>
-              <div className="space-y-2 mt-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-[#64748B] mb-3">Документи</p>
+              <div className="space-y-3">
                 <MetricRow 
                   label="На верифікацію" 
                   value={documents.pendingVerification}
                   alert={documents.pendingVerification > 3}
                 />
-                <MetricRow label="Відхилено" value={documents.rejectedCount} color="#DC2626" />
-                <MetricRow label="Завантажено" value={documents.uploadedToday} color="#0055FF" />
+                <MetricRow label="Відхилено" value={documents.rejectedCount} color="text-[#F87171]" />
+                <MetricRow label="Завантажено" value={documents.uploadedToday} color="text-[#818CF8]" />
               </div>
             </div>
           </div>
         </div>
 
         {/* Routing & System Health */}
-        <div className="bg-white border border-[#D4D4D8] p-5" data-testid="routing-health">
-          <div className="flex items-center gap-2 mb-4">
-            <Heartbeat size={20} weight="bold" className="text-[#16A34A]" />
-            <h3 className="text-lg font-semibold" style={{ fontFamily: 'Cabinet Grotesk, sans-serif' }}>
+        <div className="card-premium" data-testid="routing-health">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-10 h-10 bg-[#10B981]/10 rounded-xl flex items-center justify-center">
+              <Heartbeat size={20} weight="bold" className="text-[#34D399]" />
+            </div>
+            <h3 className="text-lg font-medium text-white font-heading">
               Routing & System
             </h3>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-6">
             <div>
-              <span className="text-xs font-semibold uppercase tracking-wide text-[#71717A]">Routing</span>
-              <div className="space-y-2 mt-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-[#64748B] mb-3">Routing</p>
+              <div className="space-y-3">
                 <MetricRow 
                   label="Fallback" 
                   value={routing.fallbackAssignments}
@@ -352,10 +387,10 @@ const Dashboard = () => {
               </div>
             </div>
             <div>
-              <span className="text-xs font-semibold uppercase tracking-wide text-[#71717A]">System</span>
-              <div className="space-y-2 mt-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-[#64748B] mb-3">System</p>
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Status</span>
+                  <span className="text-sm text-[#94A3B8]">Status</span>
                   <SystemStatusBadge status={system.systemStatus} />
                 </div>
                 <MetricRow label="Queue" value={system.queueBacklog} />
@@ -368,33 +403,37 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 
 // Helper Components
-const KpiCard = ({ icon: Icon, label, value, color, bgColor, alert }) => (
+const KpiCard = ({ icon: Icon, label, value, glowClass, alert }) => (
   <div 
-    className={`p-4 border ${alert ? 'border-[#DC2626] bg-[#FEE2E2]' : 'border-[#D4D4D8] bg-white'}`}
+    className={`kpi-card group ${alert ? 'border-[#EF4444]/30' : ''}`}
     data-testid={`kpi-${label.toLowerCase().replace(/\s/g, '-')}`}
   >
-    <div className="flex items-center gap-2 mb-2">
-      <div className="w-8 h-8 flex items-center justify-center" style={{ backgroundColor: bgColor }}>
-        <Icon size={16} weight="bold" style={{ color }} />
+    <div className={glowClass}></div>
+    <div className="relative z-10">
+      <div className="flex items-center gap-3 mb-3">
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+          alert ? 'bg-[#EF4444]/10' : 'bg-white/5'
+        }`}>
+          <Icon size={20} weight="bold" className={alert ? 'text-[#EF4444]' : 'text-[#94A3B8]'} />
+        </div>
       </div>
+      <div className={`kpi-value ${alert ? 'text-[#EF4444]' : ''}`}>{value}</div>
+      <div className="kpi-label">{label}</div>
     </div>
-    <div className="text-2xl font-bold tracking-tight">{value}</div>
-    <div className="text-xs font-semibold uppercase tracking-wide text-[#71717A]">{label}</div>
   </div>
 );
 
 const MetricRow = ({ label, value, color, alert }) => (
   <div className="flex items-center justify-between">
-    <span className="text-sm text-[#71717A]">{label}</span>
+    <span className="text-sm text-[#94A3B8]">{label}</span>
     <span 
-      className={`text-sm font-semibold ${alert ? 'text-[#DC2626]' : ''}`}
-      style={{ color: !alert && color ? color : undefined }}
+      className={`text-sm font-medium ${alert ? 'text-[#EF4444]' : color || 'text-white'}`}
     >
       {value}
     </span>
@@ -403,41 +442,35 @@ const MetricRow = ({ label, value, color, alert }) => (
 
 const StatusDot = ({ status }) => {
   const colors = {
-    ok: '#16A34A',
-    busy: '#F59E0B',
-    overloaded: '#DC2626',
-    idle: '#71717A',
+    ok: 'bg-[#10B981]',
+    busy: 'bg-[#F59E0B]',
+    overloaded: 'bg-[#EF4444]',
+    idle: 'bg-[#64748B]',
   };
   return (
-    <span 
-      className="w-2 h-2 rounded-full inline-block"
-      style={{ backgroundColor: colors[status] || '#71717A' }}
-    />
+    <span className={`w-2.5 h-2.5 rounded-full ${colors[status] || 'bg-[#64748B]'}`} />
   );
 };
 
 const getWorkloadBg = (status) => {
   const bgs = {
-    ok: 'bg-[#D1FAE5]',
-    busy: 'bg-[#FEF3C7]',
-    overloaded: 'bg-[#FEE2E2]',
-    idle: 'bg-[#F4F4F5]',
+    ok: 'bg-[#10B981]/10',
+    busy: 'bg-[#F59E0B]/10',
+    overloaded: 'bg-[#EF4444]/10',
+    idle: 'bg-white/5',
   };
-  return bgs[status] || 'bg-[#F4F4F5]';
+  return bgs[status] || 'bg-white/5';
 };
 
 const SystemStatusBadge = ({ status }) => {
   const configs = {
-    healthy: { bg: '#D1FAE5', color: '#16A34A', label: 'Healthy' },
-    warning: { bg: '#FEF3C7', color: '#F59E0B', label: 'Warning' },
-    critical: { bg: '#FEE2E2', color: '#DC2626', label: 'Critical' },
+    healthy: { bg: 'bg-[#10B981]/15', color: 'text-[#34D399]', border: 'border-[#10B981]/30', label: 'Healthy' },
+    warning: { bg: 'bg-[#F59E0B]/15', color: 'text-[#FBBF24]', border: 'border-[#F59E0B]/30', label: 'Warning' },
+    critical: { bg: 'bg-[#EF4444]/15', color: 'text-[#F87171]', border: 'border-[#EF4444]/30', label: 'Critical' },
   };
   const config = configs[status] || configs.healthy;
   return (
-    <span 
-      className="px-2 py-1 text-xs font-semibold"
-      style={{ backgroundColor: config.bg, color: config.color }}
-    >
+    <span className={`badge-premium ${config.bg} ${config.color} ${config.border}`}>
       {config.label}
     </span>
   );

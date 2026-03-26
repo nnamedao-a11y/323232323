@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Plus, MagnifyingGlass, Funnel, X, Pencil, Trash, Eye } from '@phosphor-icons/react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { motion } from 'framer-motion';
 
 const LEAD_STATUSES = ['new', 'contacted', 'qualified', 'proposal', 'negotiation', 'won', 'lost', 'archived'];
 const LEAD_SOURCES = ['website', 'referral', 'social_media', 'cold_call', 'advertisement', 'partner', 'other'];
@@ -111,17 +112,22 @@ const Leads = () => {
   };
 
   return (
-    <div data-testid="leads-page">
-      <div className="flex items-center justify-between mb-6">
+    <motion.div 
+      data-testid="leads-page"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+    >
+      <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight" style={{ fontFamily: 'Cabinet Grotesk, sans-serif' }}>
+          <h1 className="text-3xl font-medium tracking-tight text-white font-heading">
             Ліди
           </h1>
-          <p className="text-sm text-[#71717A] mt-1">Управління потенційними клієнтами</p>
+          <p className="text-sm text-[#64748B] mt-1">Управління потенційними клієнтами</p>
         </div>
         <button
           onClick={() => { resetForm(); setShowModal(true); }}
-          className="btn-primary flex items-center gap-2"
+          className="btn-primary"
           data-testid="create-lead-btn"
         >
           <Plus size={18} weight="bold" />
@@ -130,40 +136,40 @@ const Leads = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white border border-[#D4D4D8] p-4 mb-4">
+      <div className="card-premium p-5 mb-5">
         <div className="flex flex-wrap gap-4">
           <div className="flex-1 min-w-[200px]">
             <div className="relative">
-              <MagnifyingGlass size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#71717A]" />
+              <MagnifyingGlass size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#475569]" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Пошук..."
-                className="w-full pl-10 pr-4 py-2 border border-[#D4D4D8] text-sm focus:outline-none focus:border-[#0055FF]"
+                placeholder="Пошук по імені, email, телефону..."
+                className="input-premium pl-11 w-full"
                 data-testid="leads-search-input"
               />
             </div>
           </div>
           <Select value={statusFilter || "all"} onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}>
-            <SelectTrigger className="w-[160px]" data-testid="leads-status-filter">
+            <SelectTrigger className="w-[160px] input-premium" data-testid="leads-status-filter">
               <SelectValue placeholder="Всі статуси" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Всі статуси</SelectItem>
+            <SelectContent className="dropdown-premium">
+              <SelectItem value="all" className="dropdown-item">Всі статуси</SelectItem>
               {LEAD_STATUSES.map(s => (
-                <SelectItem key={s} value={s}>{statusLabels[s]}</SelectItem>
+                <SelectItem key={s} value={s} className="dropdown-item">{statusLabels[s]}</SelectItem>
               ))}
             </SelectContent>
           </Select>
           <Select value={sourceFilter || "all"} onValueChange={(v) => setSourceFilter(v === "all" ? "" : v)}>
-            <SelectTrigger className="w-[160px]" data-testid="leads-source-filter">
+            <SelectTrigger className="w-[160px] input-premium" data-testid="leads-source-filter">
               <SelectValue placeholder="Всі джерела" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Всі джерела</SelectItem>
+            <SelectContent className="dropdown-premium">
+              <SelectItem value="all" className="dropdown-item">Всі джерела</SelectItem>
               {LEAD_SOURCES.map(s => (
-                <SelectItem key={s} value={s}>{sourceLabels[s]}</SelectItem>
+                <SelectItem key={s} value={s} className="dropdown-item">{sourceLabels[s]}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -171,8 +177,8 @@ const Leads = () => {
       </div>
 
       {/* Table */}
-      <div className="bg-white border border-[#D4D4D8] overflow-hidden">
-        <table className="crm-table" data-testid="leads-table">
+      <div className="card-premium overflow-hidden">
+        <table className="table-premium" data-testid="leads-table">
           <thead>
             <tr>
               <th>Ім'я</th>
@@ -186,35 +192,48 @@ const Leads = () => {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} className="text-center py-8 text-[#71717A]">Завантаження...</td></tr>
+              <tr><td colSpan={7} className="text-center py-12 text-[#64748B]">
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-5 h-5 border-2 border-[#4F46E5] border-t-transparent rounded-full animate-spin"></div>
+                  Завантаження...
+                </div>
+              </td></tr>
             ) : leads.length === 0 ? (
-              <tr><td colSpan={7} className="text-center py-8 text-[#71717A]">Немає лідів</td></tr>
+              <tr><td colSpan={7} className="text-center py-12 text-[#64748B]">Немає лідів</td></tr>
             ) : leads.map(lead => (
               <tr key={lead.id} data-testid={`lead-row-${lead.id}`}>
-                <td className="font-medium">{lead.firstName} {lead.lastName}</td>
+                <td className="font-medium text-white">{lead.firstName} {lead.lastName}</td>
                 <td>{lead.email}</td>
                 <td>{lead.company || '—'}</td>
-                <td><span className="text-xs">{sourceLabels[lead.source]}</span></td>
+                <td><span className="text-xs text-[#94A3B8]">{sourceLabels[lead.source]}</span></td>
                 <td>
                   <Select value={lead.status} onValueChange={(v) => handleStatusChange(lead.id, v)}>
-                    <SelectTrigger className="w-[120px] h-7 text-xs" data-testid={`lead-status-${lead.id}`}>
-                      <span className={`status-badge status-${lead.status}`}>{statusLabels[lead.status]}</span>
+                    <SelectTrigger className="w-[130px] h-8 bg-transparent border-0 p-0" data-testid={`lead-status-${lead.id}`}>
+                      <span className={`badge-premium status-${lead.status}`}>{statusLabels[lead.status]}</span>
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="dropdown-premium">
                       {LEAD_STATUSES.map(s => (
-                        <SelectItem key={s} value={s}>{statusLabels[s]}</SelectItem>
+                        <SelectItem key={s} value={s} className="dropdown-item">{statusLabels[s]}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </td>
-                <td>${lead.value?.toLocaleString() || 0}</td>
+                <td className="text-[#34D399] font-medium">${lead.value?.toLocaleString() || 0}</td>
                 <td>
                   <div className="flex items-center justify-end gap-1">
-                    <button onClick={() => openEditModal(lead)} className="p-2 hover:bg-[#F4F4F5]" data-testid={`edit-lead-${lead.id}`}>
-                      <Pencil size={16} />
+                    <button 
+                      onClick={() => openEditModal(lead)} 
+                      className="p-2.5 hover:bg-white/5 rounded-lg transition-colors" 
+                      data-testid={`edit-lead-${lead.id}`}
+                    >
+                      <Pencil size={16} className="text-[#94A3B8]" />
                     </button>
-                    <button onClick={() => handleDelete(lead.id)} className="p-2 hover:bg-[#FEE2E2] text-[#DC2626]" data-testid={`delete-lead-${lead.id}`}>
-                      <Trash size={16} />
+                    <button 
+                      onClick={() => handleDelete(lead.id)} 
+                      className="p-2.5 hover:bg-[#EF4444]/10 rounded-lg transition-colors" 
+                      data-testid={`delete-lead-${lead.id}`}
+                    >
+                      <Trash size={16} className="text-[#EF4444]" />
                     </button>
                   </div>
                 </td>
@@ -226,66 +245,126 @@ const Leads = () => {
 
       {/* Modal */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="max-w-md" data-testid="lead-modal">
+        <DialogContent className="max-w-md bg-[#13151A] border border-white/10 rounded-2xl" data-testid="lead-modal">
           <DialogHeader>
-            <DialogTitle>{editingLead ? 'Редагувати лід' : 'Новий лід'}</DialogTitle>
+            <DialogTitle className="text-xl font-medium text-white font-heading">
+              {editingLead ? 'Редагувати лід' : 'Новий лід'}
+            </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wide text-[#71717A] mb-1">Ім'я</label>
-                <input type="text" value={formData.firstName} onChange={(e) => setFormData({...formData, firstName: e.target.value})} required className="w-full px-3 py-2 border border-[#D4D4D8] text-sm" data-testid="lead-firstname-input" />
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[#64748B] mb-2">Ім'я</label>
+                <input 
+                  type="text" 
+                  value={formData.firstName} 
+                  onChange={(e) => setFormData({...formData, firstName: e.target.value})} 
+                  required 
+                  className="input-premium w-full" 
+                  data-testid="lead-firstname-input" 
+                />
               </div>
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wide text-[#71717A] mb-1">Прізвище</label>
-                <input type="text" value={formData.lastName} onChange={(e) => setFormData({...formData, lastName: e.target.value})} required className="w-full px-3 py-2 border border-[#D4D4D8] text-sm" data-testid="lead-lastname-input" />
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[#64748B] mb-2">Прізвище</label>
+                <input 
+                  type="text" 
+                  value={formData.lastName} 
+                  onChange={(e) => setFormData({...formData, lastName: e.target.value})} 
+                  required 
+                  className="input-premium w-full" 
+                  data-testid="lead-lastname-input" 
+                />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wide text-[#71717A] mb-1">Email</label>
-              <input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} required className="w-full px-3 py-2 border border-[#D4D4D8] text-sm" data-testid="lead-email-input" />
+              <label className="block text-xs font-semibold uppercase tracking-wider text-[#64748B] mb-2">Email</label>
+              <input 
+                type="email" 
+                value={formData.email} 
+                onChange={(e) => setFormData({...formData, email: e.target.value})} 
+                required 
+                className="input-premium w-full" 
+                data-testid="lead-email-input" 
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wide text-[#71717A] mb-1">Телефон</label>
-                <input type="tel" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} className="w-full px-3 py-2 border border-[#D4D4D8] text-sm" data-testid="lead-phone-input" />
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[#64748B] mb-2">Телефон</label>
+                <input 
+                  type="tel" 
+                  value={formData.phone} 
+                  onChange={(e) => setFormData({...formData, phone: e.target.value})} 
+                  className="input-premium w-full" 
+                  data-testid="lead-phone-input" 
+                />
               </div>
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wide text-[#71717A] mb-1">Компанія</label>
-                <input type="text" value={formData.company} onChange={(e) => setFormData({...formData, company: e.target.value})} className="w-full px-3 py-2 border border-[#D4D4D8] text-sm" data-testid="lead-company-input" />
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[#64748B] mb-2">Компанія</label>
+                <input 
+                  type="text" 
+                  value={formData.company} 
+                  onChange={(e) => setFormData({...formData, company: e.target.value})} 
+                  className="input-premium w-full" 
+                  data-testid="lead-company-input" 
+                />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wide text-[#71717A] mb-1">Джерело</label>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[#64748B] mb-2">Джерело</label>
                 <Select value={formData.source} onValueChange={(v) => setFormData({...formData, source: v})}>
-                  <SelectTrigger data-testid="lead-source-select">
+                  <SelectTrigger className="input-premium w-full" data-testid="lead-source-select">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="dropdown-premium">
                     {LEAD_SOURCES.map(s => (
-                      <SelectItem key={s} value={s}>{sourceLabels[s]}</SelectItem>
+                      <SelectItem key={s} value={s} className="dropdown-item">{sourceLabels[s]}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wide text-[#71717A] mb-1">Вартість ($)</label>
-                <input type="number" value={formData.value} onChange={(e) => setFormData({...formData, value: parseInt(e.target.value) || 0})} className="w-full px-3 py-2 border border-[#D4D4D8] text-sm" data-testid="lead-value-input" />
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[#64748B] mb-2">Вартість ($)</label>
+                <input 
+                  type="number" 
+                  value={formData.value} 
+                  onChange={(e) => setFormData({...formData, value: parseInt(e.target.value) || 0})} 
+                  className="input-premium w-full" 
+                  data-testid="lead-value-input" 
+                />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wide text-[#71717A] mb-1">Опис</label>
-              <textarea value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} rows={3} className="w-full px-3 py-2 border border-[#D4D4D8] text-sm resize-none" data-testid="lead-description-input" />
+              <label className="block text-xs font-semibold uppercase tracking-wider text-[#64748B] mb-2">Опис</label>
+              <textarea 
+                value={formData.description} 
+                onChange={(e) => setFormData({...formData, description: e.target.value})} 
+                rows={3} 
+                className="input-premium w-full resize-none" 
+                data-testid="lead-description-input" 
+              />
             </div>
             <div className="flex gap-3 pt-2">
-              <button type="button" onClick={() => setShowModal(false)} className="flex-1 btn-secondary" data-testid="lead-cancel-btn">Скасувати</button>
-              <button type="submit" className="flex-1 btn-primary" data-testid="lead-submit-btn">{editingLead ? 'Зберегти' : 'Створити'}</button>
+              <button 
+                type="button" 
+                onClick={() => setShowModal(false)} 
+                className="btn-secondary flex-1" 
+                data-testid="lead-cancel-btn"
+              >
+                Скасувати
+              </button>
+              <button 
+                type="submit" 
+                className="btn-primary flex-1" 
+                data-testid="lead-submit-btn"
+              >
+                {editingLead ? 'Зберегти' : 'Створити'}
+              </button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </motion.div>
   );
 };
 

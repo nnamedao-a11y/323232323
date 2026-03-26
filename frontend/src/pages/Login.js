@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
 import { toast } from 'sonner';
-import { Car, Eye, EyeSlash } from '@phosphor-icons/react';
+import { Car, Eye, EyeSlash, ArrowRight } from '@phosphor-icons/react';
+import { motion } from 'framer-motion';
 
 const Login = () => {
   const [email, setEmail] = useState('admin@crm.com');
@@ -27,29 +28,41 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F7F8] flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white border border-[#D4D4D8] p-8">
+    <div className="min-h-screen bg-[#0A0B0F] flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Background gradient */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-[#4F46E5]/20 rounded-full blur-[120px]"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-[#8B5CF6]/15 rounded-full blur-[100px]"></div>
+      </div>
+
+      <motion.div 
+        className="w-full max-w-md relative z-10"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="card-premium p-8 backdrop-blur-xl">
+          {/* Logo */}
           <div className="flex items-center justify-center gap-3 mb-8">
-            <div className="w-10 h-10 bg-[#0A0A0B] flex items-center justify-center">
-              <Car size={24} weight="bold" className="text-white" />
+            <div className="w-12 h-12 bg-gradient-to-br from-[#4F46E5] to-[#6366F1] rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
+              <Car size={28} weight="bold" className="text-white" />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight" style={{ fontFamily: 'Cabinet Grotesk, sans-serif' }}>
+            <h1 className="text-2xl font-semibold tracking-tight text-white font-heading">
               AutoCRM
             </h1>
           </div>
 
           <form onSubmit={handleSubmit} data-testid="login-form">
-            <div className="space-y-4">
+            <div className="space-y-5">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wide text-[#71717A] mb-2">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[#64748B] mb-2">
                   Email
                 </label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 border border-[#D4D4D8] bg-white text-sm focus:outline-none focus:border-[#0055FF] focus:ring-1 focus:ring-[#0055FF]"
+                  className="input-premium"
                   placeholder="email@example.com"
                   required
                   data-testid="login-email-input"
@@ -57,7 +70,7 @@ const Login = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wide text-[#71717A] mb-2">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[#64748B] mb-2">
                   Пароль
                 </label>
                 <div className="relative">
@@ -65,7 +78,7 @@ const Login = () => {
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-4 py-3 border border-[#D4D4D8] bg-white text-sm focus:outline-none focus:border-[#0055FF] focus:ring-1 focus:ring-[#0055FF] pr-12"
+                    className="input-premium pr-12"
                     placeholder="••••••••"
                     required
                     data-testid="login-password-input"
@@ -73,7 +86,7 @@ const Login = () => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#71717A] hover:text-[#0A0A0B]"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#64748B] hover:text-white transition-colors"
                     data-testid="toggle-password-btn"
                   >
                     {showPassword ? <EyeSlash size={20} /> : <Eye size={20} />}
@@ -84,19 +97,29 @@ const Login = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-[#0A0A0B] text-white py-3 text-sm font-semibold hover:bg-[#27272A] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn-primary w-full py-3 mt-2 group"
                 data-testid="login-submit-btn"
               >
-                {loading ? 'Вхід...' : 'Увійти'}
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    Вхід...
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center gap-2">
+                    Увійти
+                    <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                  </span>
+                )}
               </button>
             </div>
           </form>
 
-          <p className="text-center text-xs text-[#71717A] mt-6">
-            Тестовий обліковий запис: admin@crm.com / admin123
+          <p className="text-center text-xs text-[#64748B] mt-6">
+            Тестовий обліковий запис: <span className="text-[#94A3B8]">admin@crm.com / admin123</span>
           </p>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };
