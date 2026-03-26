@@ -1,16 +1,17 @@
 # CRM/Admin Platform - PRD
 
 ## Оригінальна постановка задачі
-Full CRM/Admin platform для автобізнесу. Modular architecture з TypeScript для call-center операцій, automation workflows та communication management.
+Full CRM/Admin platform для автобізнесу з call-center операціями, automation workflows, communication management. Provider-based architecture для SMS з прицілом на Болгарію.
 
 ## Зафіксований стек
 - **Backend**: NestJS + TypeScript + MongoDB
 - **Frontend**: React + Tailwind CSS
-- **Cache/Queues**: Redis + Bull (інтегровано)
+- **Cache/Queues**: Redis + Bull (6 черг)
+- **SMS**: Provider abstraction layer (Twilio + Viber placeholder)
 - **Архітектура**: Modular monolith, domain-driven
-- **Мова інтерфейсу**: Українська
+- **Мова інтерфейсу**: Українська (адмін), UK/EN/BG (шаблони)
 
-## Реалізовано (Phase 1-4)
+## Реалізовано (Jan 2026)
 
 ### Backend Modules
 - ✅ Auth (JWT, login/logout, password hashing)
@@ -29,69 +30,75 @@ Full CRM/Admin platform для автобізнесу. Modular architecture з T
 - ✅ Settings
 - ✅ Audit Log
 - ✅ **Redis Queue Infrastructure** (automation, notifications, callbacks, follow-ups, escalations, communications)
-- ✅ **Automation Engine** (triggers: lead_created, lead_assigned, call_missed, task_overdue, deposit_received; actions: create_task, send_notification, escalate, schedule_callback, schedule_follow_up)
-- ✅ **Call Center Module** (call logging, callback queue, contact status tracking, call history)
-- ✅ **Communications Module** (email templates, message history, Resend integration ready)
-- ✅ **Export Module** (Excel export for leads, deals, deposits, tasks)
+
+### ✅ Automation Engine (9 rules)
+**Lead Lifecycle:**
+- Новий лід → callback task (10 хв) + notification
+
+**No-Answer Workflow (Bulgaria-optimized):**
+1. Перший no_answer → follow-up через 2 години
+2. Другий no_answer → follow-up через 2 дні
+3. Третій no_answer → **SMS автоматично** + follow-up через 3 дні
+4. Четвертий no_answer → перевести в cold/unreachable
+
+**Task Management:**
+- Прострочена задача → ескалація адміну
+
+**Deposit:**
+- Депозит отримано → notification менеджеру
+
+**No Response Monitoring:**
+- 24h без відповіді → reminder + callback
+- 48h без відповіді → ескалація
+
+### ✅ Communication Module (Provider-Based)
+**Architecture:**
+```
+communications/
+├── providers/
+│   ├── sms.provider.interface.ts  # Abstract contract
+│   ├── twilio.provider.ts         # Twilio implementation
+│   ├── viber.provider.ts          # Viber placeholder
+│   └── sms-provider.manager.ts    # Fallback orchestration
+├── schemas/
+│   ├── communication-log.schema.ts
+│   └── message-template.schema.ts (multilingual)
+└── communications.service.ts
+```
+
+**SMS Providers:**
+- ✅ TwilioSMSProvider (Bulgaria E.164: +359XXXXXXXXX)
+- ✅ ViberBusinessProvider (placeholder для Phase 2)
+- ✅ SMSProviderManager (fallback, country detection)
+
+**Message Templates (7 total):**
+Email (3): new_lead, task_reminder, deposit_alert
+SMS (4): follow_up, no_answer, callback, welcome
+
+**Multilingual Support:**
+- UK: українська (default)
+- EN: English
+- BG: български (Bulgaria client communications)
+
+### ✅ Export Module
+- Excel export: leads, deals, deposits, tasks
+- Audit log tracking
 
 ### Frontend Pages (Ukrainian UI)
-- ✅ Login
-- ✅ Dashboard (KPI cards, stats by status)
-- ✅ Leads (table, filters, CRUD modal, status change)
-- ✅ Customers (table, CRUD modal)
-- ✅ Deals (table, status management)
-- ✅ Deposits (table, approve action)
-- ✅ Tasks (cards, priority, status)
-- ✅ Staff (team list)
-- ✅ Settings (system config)
-
-### Automation Rules (Default)
-1. Новий лід → створити задачу на дзвінок (10 хв) + нотифікація менеджеру
-2. Прострочена задача → ескалація адміну + нотифікація
-3. Пропущений дзвінок → follow-up через 2 години
-4. Депозит отримано → нотифікація менеджеру
-
-### Communication Templates
-1. Новий лід (Email)
-2. Нагадування про задачу (Email)
-3. Депозит отримано (Email)
-4. Follow-up SMS
-
-## User Personas
-1. **Master Admin** - повний доступ до всіх функцій
-2. **Admin** - управління користувачами, лідами, угодами, automation rules
-3. **Moderator** - робота з лідами, призначення
-4. **Manager** - власні ліди, клієнти, завдання
-5. **Finance** - депозити, фінансові звіти, експорт
+- ✅ Login, Dashboard, Leads, Customers, Deals, Deposits, Tasks, Staff, Settings
 
 ## API Endpoints
-### Auth
-- POST /api/auth/login
-- GET /api/auth/me
 
-### Core CRUD
-- CRUD /api/leads, /api/customers, /api/deals, /api/deposits, /api/tasks
-
-### Dashboard
-- GET /api/dashboard
-- GET /api/dashboard/kpi
+### Communications (NEW)
+- POST /api/communications/send - universal message send
+- POST /api/communications/sms/send - direct SMS
+- GET /api/communications/sms/providers - providers status
+- GET /api/communications/history/:recipientId
+- CRUD /api/communications/templates
 
 ### Automation
 - CRUD /api/automation/rules
 - GET /api/automation/logs
-
-### Call Center
-- POST /api/call-center/calls (log call)
-- GET /api/call-center/calls/:leadId (history)
-- POST /api/call-center/callbacks (schedule)
-- GET /api/call-center/callbacks (queue)
-- PUT /api/call-center/callbacks/:id/complete
-- GET /api/call-center/stats
-
-### Communications
-- POST /api/communications/send
-- GET /api/communications/history/:recipientId
-- CRUD /api/communications/templates
 
 ### Export
 - GET /api/export/leads (Excel)
@@ -99,40 +106,67 @@ Full CRM/Admin platform для автобізнесу. Modular architecture з T
 - GET /api/export/deposits (Excel)
 - GET /api/export/tasks (Excel)
 
-## Що залишилося (Backlog)
+## Configuration Required
+
+### Twilio SMS (Bulgaria)
+```env
+TWILIO_ACCOUNT_SID=your_account_sid
+TWILIO_AUTH_TOKEN=your_auth_token
+TWILIO_FROM_NUMBER=+359XXXXXXXXX
+# Optional:
+TWILIO_MESSAGING_SERVICE_SID=your_service_sid
+TWILIO_STATUS_CALLBACK_URL=https://your-domain/api/webhooks/twilio
+```
+
+### Resend Email
+```env
+RESEND_API_KEY=re_xxxxxxxx
+SENDER_EMAIL=noreply@yourdomain.com
+```
+
+### Viber Business (Future)
+```env
+VIBER_BUSINESS_ID=your_business_id
+VIBER_SERVICE_ID=your_service_id
+VIBER_AUTH_TOKEN=your_auth_token
+VIBER_SENDER_NAME=AutoCRM
+```
+
+## Backlog
 
 ### P0 - Critical
-- [ ] Resend API key configuration для email нотифікацій
-- [ ] SMS provider integration (Twilio/local provider for Bulgaria)
+- [ ] Configure Twilio credentials for SMS
+- [ ] Configure Resend for email
 
 ### P1 - High Priority
+- [ ] Viber Business integration via partner
 - [ ] File/Document storage (S3/local)
-- [ ] Automation rules UI в адмін-панелі
-- [ ] Call Center UI (логування дзвінків, callback queue)
-- [ ] Communication timeline в картці ліда
+- [ ] Automation rules UI in admin panel
+- [ ] Call Center UI components
+- [ ] Communication timeline in lead card
 
 ### P2 - Medium Priority
-- [ ] Viber Business integration
+- [ ] Delivery status webhooks
 - [ ] Reviews module (Google Reviews integration)
 - [ ] Activity timeline component
-- [ ] 2FA via email
+- [ ] 2FA via SMS/email
 
 ### P3 - Nice to Have
 - [ ] AI Lead Scoring (після накопичення даних)
+- [ ] WhatsApp Business integration
 - [ ] Parser integration
 - [ ] Client cabinet API
 
-## Технічний стек
-- Redis workers запущені через Bull queues
-- Supervisor конфіг з Python proxy для NestJS
-- Hot reload enabled
-- MongoDB indexes optimized
+## Test Results (Jan 2026)
+- Backend: 93.3% (14/15 tests)
+- Frontend: 100%
+- Integration: 100%
 
 ## Дата останнього оновлення
 2026-03-26
 
 ## Наступні дії
-1. Налаштувати RESEND_API_KEY для email нотифікацій
-2. Додати UI для Automation Rules
-3. Додати Call Center UI компоненти
-4. Інтегрувати File Storage для документів
+1. Налаштувати TWILIO_* в .env для SMS
+2. Налаштувати RESEND_API_KEY для email
+3. Додати UI для Automation Rules
+4. Почати Viber Business onboarding через партнера
