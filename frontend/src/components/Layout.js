@@ -11,9 +11,7 @@ import {
   UsersThree, 
   Gear, 
   SignOut,
-  Bell,
-  Car,
-  MagnifyingGlass
+  Bell
 } from '@phosphor-icons/react';
 
 const Layout = () => {
@@ -45,26 +43,20 @@ const Layout = () => {
   };
 
   return (
-    <div className="flex h-screen bg-[#0A0B0F]">
+    <div className="flex h-screen bg-[#F7F7F8]">
       {/* Sidebar */}
-      <aside className="sidebar-premium">
+      <aside className="sidebar">
         {/* Logo */}
-        <div className="px-4 py-6 mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-[#4F46E5] to-[#6366F1] rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-              <Car size={22} weight="bold" className="text-white" />
-            </div>
-            <span className="text-xl font-semibold tracking-tight text-white font-heading">
-              AutoCRM
-            </span>
-          </div>
+        <div className="p-5 border-b border-[#E4E4E7]">
+          <img 
+            src="/images/logo.svg" 
+            alt="Logo" 
+            className="h-10 w-auto"
+          />
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-2" data-testid="sidebar-nav">
-          <p className="px-4 py-2 text-xs font-semibold text-[#475569] uppercase tracking-wider">
-            Меню
-          </p>
+        <nav className="flex-1 py-4" data-testid="sidebar-nav">
           {navItems.map(({ path, icon: Icon, label }) => (
             <NavLink
               key={path}
@@ -82,19 +74,19 @@ const Layout = () => {
         </nav>
 
         {/* User */}
-        <div className="p-4 border-t border-white/5 mt-auto">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-gradient-to-br from-[#4F46E5] to-[#818CF8] rounded-xl flex items-center justify-center text-sm font-semibold text-white">
+        <div className="p-4 border-t border-[#E4E4E7]">
+          <div className="flex items-center gap-3 mb-3 px-2">
+            <div className="w-10 h-10 bg-[#18181B] rounded-xl flex items-center justify-center text-sm font-semibold text-white">
               {user?.firstName?.[0]}{user?.lastName?.[0]}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">{user?.firstName} {user?.lastName}</p>
-              <p className="text-xs text-[#64748B]">{roleLabels[user?.role] || user?.role}</p>
+              <p className="text-sm font-medium text-[#18181B] truncate">{user?.firstName} {user?.lastName}</p>
+              <p className="text-xs text-[#71717A]">{roleLabels[user?.role] || user?.role}</p>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#64748B] hover:text-[#EF4444] rounded-xl hover:bg-[#EF4444]/10 transition-all duration-200"
+            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#71717A] hover:text-[#DC2626] rounded-xl hover:bg-[#FEE2E2] transition-all"
             data-testid="logout-btn"
           >
             <SignOut size={18} />
@@ -106,31 +98,30 @@ const Layout = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="h-16 bg-[#0A0B0F] border-b border-white/5 flex items-center justify-between px-6">
-          {/* Search */}
-          <div className="relative w-80">
-            <MagnifyingGlass size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#475569]" />
+        <header className="h-16 bg-white border-b border-[#E4E4E7] flex items-center justify-between px-8">
+          {/* Search - без лупи */}
+          <div className="w-80">
             <input 
               type="text" 
               placeholder="Пошук..." 
-              className="input-premium pl-11 py-2.5 w-full text-sm"
+              className="input"
               data-testid="search-input"
             />
           </div>
           
           <div className="flex items-center gap-3">
             <button 
-              className="relative p-2.5 text-[#64748B] hover:text-white hover:bg-white/5 rounded-xl transition-all duration-200"
+              className="relative p-2.5 text-[#71717A] hover:text-[#18181B] hover:bg-[#F4F4F5] rounded-xl transition-all"
               data-testid="notifications-btn"
             >
               <Bell size={20} />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-[#EF4444] rounded-full ring-2 ring-[#0A0B0F]"></span>
+              <span className="absolute top-2 right-2 w-2 h-2 bg-[#DC2626] rounded-full"></span>
             </button>
           </div>
         </header>
 
         {/* Content */}
-        <main className="flex-1 overflow-auto p-6 bg-[#0A0B0F]">
+        <main className="flex-1 overflow-auto p-8">
           <Outlet />
         </main>
       </div>
