@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Query, UseGuards, Body } from '@nestjs/common';
+import { Controller, Get, Post, Param, Query, UseGuards, Body, HttpCode } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
@@ -40,6 +40,7 @@ export class SlaController {
 
   // Вручну запустити перевірку callback SLA
   @Post('check/callbacks')
+  @HttpCode(200)
   @Roles(UserRole.MASTER_ADMIN, UserRole.ADMIN)
   async triggerCallbackCheck() {
     await this.slaService.checkCallbackSla();
@@ -48,6 +49,7 @@ export class SlaController {
 
   // Вручну запустити перевірку lead SLA
   @Post('check/leads')
+  @HttpCode(200)
   @Roles(UserRole.MASTER_ADMIN, UserRole.ADMIN)
   async triggerLeadCheck() {
     await this.slaService.checkLeadSla();
@@ -56,6 +58,7 @@ export class SlaController {
 
   // Позначити breach як вирішений
   @Post('breaches/:type/:entityId/resolve')
+  @HttpCode(200)
   @Roles(UserRole.MASTER_ADMIN, UserRole.ADMIN)
   async resolveBreach(
     @Param('type') type: string,

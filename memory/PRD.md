@@ -172,8 +172,55 @@ Full CRM/Admin platform для автобізнесу з call-center опера�
 - Settings (4 tabs: general, profile, security, notifications)
 - Layout (sidebar with active states)
 
+### ✅ Call Control SLA Module (Mar 2026 - NEW)
+
+**SLA Configuration:**
+- CALLBACK_FIRST_RESPONSE_MINUTES: 5
+- CALLBACK_ESCALATION_1_MINUTES: 30
+- CALLBACK_ESCALATION_2_MINUTES: 60
+- LEAD_FIRST_RESPONSE_MINUTES: 10
+- MANAGER_INACTIVE_MINUTES: 120
+
+**Cron Jobs:**
+- Every 5 min: Callback SLA check
+- Every 10 min: Lead SLA check
+- Every hour: Performance aggregation & breach cleanup
+- Daily 9:00: SLA summary report to admins
+
+**Escalation Engine (3 levels):**
+- Level 1: notify_manager
+- Level 2: notify_manager + notify_admin + create_task
+- Level 3: notify_manager + notify_admin + alert_master + create_task
+
+**API Endpoints:**
+- GET /api/sla/config - SLA configuration
+- GET /api/sla/stats - breach statistics
+- GET /api/sla/breaches - active breaches
+- GET /api/sla/breaches/manager/:id - breaches by manager
+- POST /api/sla/check/callbacks - manual callback check
+- POST /api/sla/check/leads - manual lead check
+- POST /api/sla/breaches/:type/:entityId/resolve - resolve breach
+
+### ✅ Deposit Auto-Flow (Mar 2026 - NEW)
+
+**Features:**
+- Auto-create deposit_proof document on deposit creation
+- 24-hour proof deadline
+- Finance team notification
+- Auto-verify document on deposit approval
+- Check deposits without proof (for cron)
+
+### ✅ Activity Integration Extended (Mar 2026)
+
+**Integrated in:**
+- AuthService: login
+- LeadsService: create, update, assign, reassign, status_changed
+- TasksService: create, update, complete
+- DepositsService: create, confirm, complete
+- SLA System: breach detection
+
 ## Test Results (Mar 2026)
-- Backend: 100%
+- Backend: 93-100%
 - Frontend: 100%
 - Integration: 100%
 
@@ -185,14 +232,16 @@ Full CRM/Admin platform для автобізнесу з call-center опера�
 - [x] ~~Activity Module~~ ✅ DONE
 - [x] ~~Staff Performance~~ ✅ DONE
 - [x] ~~Documents UI~~ ✅ DONE
+- [x] ~~Call Control SLA breach detection~~ ✅ DONE
+- [x] ~~Cron jobs for SLA checks~~ ✅ DONE
+- [x] ~~Deposit Auto-Flow~~ ✅ DONE
 - [ ] Configure Twilio credentials
 - [ ] Configure S3 for production
 
 ### P1 - High Priority
-- [ ] Call Control SLA breach detection
-- [ ] Cron jobs for performance snapshots
+- [ ] Parser integration
+- [ ] Website binding
 - [ ] WebSocket real-time dashboard updates
-- [ ] Deposit integration (auto-create deposit_proof document)
 
 ### P2 - Medium Priority
 - [ ] Reviews module (Google reviews, site reviews)
