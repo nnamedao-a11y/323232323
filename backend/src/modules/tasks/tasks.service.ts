@@ -5,21 +5,38 @@ import { Task } from './task.schema';
 import { toObjectResponse, toArrayResponse, generateId } from '../../shared/utils';
 import { TaskStatus } from '../../shared/enums';
 import { PaginatedResult } from '../../shared/dto/pagination.dto';
+import { ActivityService } from '../activity/services/activity.service';
+import { ActivityAction, ActivityEntityType, ActivitySource } from '../activity/enums/activity-action.enum';
 
 @Injectable()
 export class TasksService {
   constructor(
     @InjectModel(Task.name) private taskModel: Model<Task>,
+    private activityService: ActivityService,
   ) {}
 
-  async create(data: any, userId: string): Promise<any> {
+  async create(data: any, userId: string, userRole?: string, userName?: string): Promise<any> {
     const task = new this.taskModel({
       id: generateId(),
       ...data,
       createdBy: userId,
     });
     const saved = await task.save();
-    return toObjectResponse(saved);
+    const result = toObjectResponse(saved);
+
+    // Activity log
+    this.activityService.logAsync({
+      userId,
+      userRole: userRole || 'unknown',
+      userName,
+      action: ActivityAction.TASK_CREATED,
+      entityType: ActivityEntityType.TASK,
+      entityId: result.id,
+      meta: { title: data.title, assignedTo: data.assignedTo, priority: data.priority },
+      context: { source: ActivitySource.WEB },
+    });
+
+    return result;
   }
 
   async findAll(query: any): Promise<PaginatedResult<any>> {
@@ -56,9 +73,11 @@ export class TasksService {
     return toArrayResponse(tasks);
   }
 
-  async update(id: string, data: any): Promise<any> {
+  async update(id: string, data: any, userId?: string, userRole?: string, userName?: string): Promise<any> {
     const updateData = { ...data };
-    if (data.status === TaskStatus.COMPLETED) {
+    const isCompleting = data.status === TaskStatus.COMPLETED;
+    
+    if (isCompleting) {
       updateData.completedAt = new Date();
     }
 
@@ -67,6 +86,20 @@ export class TasksService {
       { $set: updateData },
       { new: true },
     );
+    
+    if (task && userId) {
+      this.activityService.logAsync({
+        userId,
+        userRole: userRole || 'unknown',
+        userName,
+        action: isCompleting ? ActivityAction.TASK_COMPLETED : ActivityAction.TASK_UPDATED,
+        entityType: ActivityEntityType.TASK,
+        entityId: id,
+        meta: isCompleting ? { title: task.title } : { fromStatus: data.status },
+        context: { source: ActivitySource.WEB },
+      });
+    }
+    
     return task ? toObjectResponse(task) : null;
   }
 
