@@ -10,6 +10,7 @@ import { DepositsDashboardService } from './deposits-dashboard.service';
 import { DocumentsDashboardService } from './documents-dashboard.service';
 import { RoutingDashboardService } from './routing-dashboard.service';
 import { SystemHealthDashboardService } from './system-health-dashboard.service';
+import { VehiclesDashboardService } from './vehicles-dashboard.service';
 import { DASHBOARD_CACHE } from '../constants/dashboard-cache.constants';
 
 @Injectable()
@@ -25,6 +26,7 @@ export class DashboardService {
     private readonly documentsDashboardService: DocumentsDashboardService,
     private readonly routingDashboardService: RoutingDashboardService,
     private readonly systemHealthDashboardService: SystemHealthDashboardService,
+    private readonly vehiclesDashboardService: VehiclesDashboardService,
   ) {
     // Try to connect to Redis, but don't fail if unavailable
     try {
@@ -58,7 +60,7 @@ export class DashboardService {
     }
 
     // Fetch all metrics in parallel
-    const [sla, workload, leads, callbacks, deposits, documents, routing, system] =
+    const [sla, workload, leads, callbacks, deposits, documents, routing, system, vehicles] =
       await Promise.all([
         this.slaDashboardService.getMetrics(query),
         this.workloadDashboardService.getMetrics(query),
@@ -68,6 +70,7 @@ export class DashboardService {
         this.documentsDashboardService.getMetrics(query),
         this.routingDashboardService.getMetrics(query),
         this.systemHealthDashboardService.getMetrics(query),
+        this.vehiclesDashboardService.getVehiclesDashboard(),
       ]);
 
     const result: MasterDashboardResponse = {
@@ -81,6 +84,7 @@ export class DashboardService {
       documents,
       routing,
       system,
+      vehicles,
     };
 
     // Save to cache

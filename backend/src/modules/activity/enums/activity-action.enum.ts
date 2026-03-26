@@ -66,6 +66,14 @@ export enum ActivityAction {
   ROUTING_REASSIGNED = 'routing_reassigned',
   ROUTING_FALLBACK = 'routing_fallback',
 
+  // Vehicles (Parser Integration)
+  VEHICLE_CREATED = 'vehicle_created',
+  VEHICLE_UPDATED = 'vehicle_updated',
+  VEHICLE_STATUS_CHANGED = 'vehicle_status_changed',
+  VEHICLE_RESERVED = 'vehicle_reserved',
+  VEHICLE_LINKED = 'vehicle_linked',
+  VEHICLE_DELETED = 'vehicle_deleted',
+
   // System
   SYSTEM_ERROR = 'system_error',
   SLA_BREACH = 'sla_breach',
@@ -81,6 +89,7 @@ export enum ActivityEntityType {
   CALL = 'call',
   MESSAGE = 'message',
   DOCUMENT = 'document',
+  VEHICLE = 'vehicle',
   SYSTEM = 'system',
 }
 

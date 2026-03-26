@@ -80,6 +80,26 @@ export interface SystemHealthDashboardMetrics {
   systemStatus: 'healthy' | 'warning' | 'critical';
 }
 
+export interface VehiclesDashboardMetrics {
+  total: number;
+  active: number;
+  sold: number;
+  reserved: number;
+  newToday: number;
+  updatedToday: number;
+  bySource: Array<{ source: string; count: number }>;
+  avgPrice: number;
+  recentVehicles: Array<{
+    id: string;
+    vin: string;
+    title: string;
+    source: string;
+    price: number;
+    status: string;
+    createdAt: Date;
+  }>;
+}
+
 export interface MasterDashboardResponse {
   generatedAt: string;
   period: 'day' | 'week' | 'month';
@@ -91,6 +111,7 @@ export interface MasterDashboardResponse {
   documents: DocumentsDashboardMetrics;
   routing: RoutingDashboardMetrics;
   system: SystemHealthDashboardMetrics;
+  vehicles?: VehiclesDashboardMetrics;
 }
 
 export interface DashboardKpiSummary {

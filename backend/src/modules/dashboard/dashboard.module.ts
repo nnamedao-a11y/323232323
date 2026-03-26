@@ -14,6 +14,7 @@ import { DepositsDashboardService } from './services/deposits-dashboard.service'
 import { DocumentsDashboardService } from './services/documents-dashboard.service';
 import { RoutingDashboardService } from './services/routing-dashboard.service';
 import { SystemHealthDashboardService } from './services/system-health-dashboard.service';
+import { VehiclesDashboardService } from './services/vehicles-dashboard.service';
 
 // Schemas
 import { Lead, LeadSchema } from '../leads/lead.schema';
@@ -23,6 +24,7 @@ import { Deposit, DepositSchema } from '../deposits/deposit.schema';
 import { Document, DocumentSchema } from '../documents/schemas/document.schema';
 import { Message, MessageSchema } from '../communications/schemas/message.schema';
 import { AssignmentHistory, AssignmentHistorySchema } from '../lead-routing/schemas/assignment-history.schema';
+import { Vehicle, VehicleSchema } from '../ingestion/schemas/vehicle.schema';
 
 // Modules for legacy endpoints
 import { LeadsModule } from '../leads/leads.module';
@@ -41,6 +43,7 @@ import { TasksModule } from '../tasks/tasks.module';
       { name: Document.name, schema: DocumentSchema },
       { name: Message.name, schema: MessageSchema },
       { name: AssignmentHistory.name, schema: AssignmentHistorySchema },
+      { name: Vehicle.name, schema: VehicleSchema },
     ]),
     LeadsModule,
     CustomersModule,
@@ -59,6 +62,7 @@ import { TasksModule } from '../tasks/tasks.module';
     DocumentsDashboardService,
     RoutingDashboardService,
     SystemHealthDashboardService,
+    VehiclesDashboardService,
   ],
   exports: [DashboardService],
 })

@@ -39,7 +39,7 @@ export class MessageTemplate extends Document {
   @Prop({ type: [String], default: [] })
   variables: string[]; // Available variables like firstName, lastName, etc.
 
-  @Prop({ type: String, enum: ['new_lead', 'task_reminder', 'follow_up', 'no_answer', 'deposit_alert', 'welcome', 'callback', 'custom'], required: true })
+  @Prop({ type: String, enum: ['new_lead', 'task_reminder', 'follow_up', 'no_answer', 'deposit_alert', 'deposit_confirm', 'welcome', 'callback', 'custom'], required: true })
   type: string;
 
   @Prop({ default: true })
