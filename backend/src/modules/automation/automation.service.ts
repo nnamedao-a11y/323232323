@@ -1,11 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { InjectQueue } from '@nestjs/bull';
 import { Model } from 'mongoose';
 import { Queue } from 'bull';
 import { AutomationRule } from './schemas/automation-rule.schema';
 import { AutomationLog } from './schemas/automation-log.schema';
-import { AutomationTrigger, AutomationAction, NotificationType } from '../../shared/enums';
+import { AutomationTrigger, AutomationAction, NotificationType, CommunicationChannel } from '../../shared/enums';
 import { generateId, toObjectResponse, toArrayResponse } from '../../shared/utils';
 import { TasksService } from '../tasks/tasks.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -26,6 +26,7 @@ export class AutomationService {
     @InjectModel(AutomationRule.name) private ruleModel: Model<AutomationRule>,
     @InjectModel(AutomationLog.name) private logModel: Model<AutomationLog>,
     @InjectQueue('automation') private automationQueue: Queue,
+    @InjectQueue('communications') private communicationsQueue: Queue,
     private tasksService: TasksService,
     private notificationsService: NotificationsService,
   ) {}
@@ -175,6 +176,50 @@ export class AutomationService {
           }, event.userId || 'system');
           return { success: true, data: { taskId: followUpTask.id } };
 
+        case AutomationAction.SEND_SMS:
+          // Add SMS to communications queue
+          if (!event.data.phone) {
+            return { success: false, error: 'No phone number available for SMS' };
+          }
+          
+          const smsMessage = this.interpolate(params.message || '', event.data);
+          await this.communicationsQueue.add('send', {
+            logId: generateId(),
+            channel: CommunicationChannel.SMS,
+            recipient: event.data.phone,
+            subject: 'AutoCRM SMS',
+            content: smsMessage,
+            metadata: {
+              leadId: event.entityType === 'lead' ? event.entityId : undefined,
+              customerId: event.entityType === 'customer' ? event.entityId : undefined,
+              attemptNumber: event.data.callAttempts || 1,
+            },
+          });
+          this.logger.log(`SMS queued for ${event.data.phone}`);
+          return { success: true, data: { queued: true, phone: event.data.phone } };
+
+        case AutomationAction.SEND_EMAIL:
+          // Add Email to communications queue
+          if (!event.data.email) {
+            return { success: false, error: 'No email available' };
+          }
+          
+          const emailSubject = this.interpolate(params.subject || 'AutoCRM Notification', event.data);
+          const emailContent = this.interpolate(params.content || params.message || '', event.data);
+          await this.communicationsQueue.add('send', {
+            logId: generateId(),
+            channel: CommunicationChannel.EMAIL,
+            recipient: event.data.email,
+            subject: emailSubject,
+            content: emailContent,
+            metadata: {
+              leadId: event.entityType === 'lead' ? event.entityId : undefined,
+              customerId: event.entityType === 'customer' ? event.entityId : undefined,
+            },
+          });
+          this.logger.log(`Email queued for ${event.data.email}`);
+          return { success: true, data: { queued: true, email: event.data.email } };
+
         default:
           this.logger.warn(`Unknown action: ${action}`);
           return { success: false, error: `Unknown action: ${action}` };
@@ -233,6 +278,7 @@ export class AutomationService {
     if (existingRules > 0) return;
 
     const defaultRules = [
+      // === LEAD LIFECYCLE ===
       {
         name: 'Новий лід - створити задачу на дзвінок',
         description: 'Коли створюється новий лід, автоматично створюється задача зателефонувати протягом 10 хвилин',
@@ -254,6 +300,77 @@ export class AutomationService {
         isActive: true,
         priority: 100,
       },
+
+      // === NO ANSWER WORKFLOW (Bulgaria-optimized) ===
+      {
+        name: 'Перший no_answer - follow-up через 2 години',
+        description: 'Якщо клієнт не відповів на перший дзвінок, створити follow-up задачу через 2 години',
+        trigger: AutomationTrigger.CALL_MISSED,
+        triggerConditions: { callAttempts: 1 },
+        actions: [
+          {
+            action: AutomationAction.SCHEDULE_FOLLOW_UP,
+            params: { delayMinutes: 120, message: 'Повторний дзвінок - клієнт не відповів (спроба 1)' }
+          }
+        ],
+        isActive: true,
+        priority: 85,
+      },
+      {
+        name: 'Другий no_answer - follow-up через 2 дні',
+        description: 'Якщо клієнт не відповів вдруге, створити follow-up через 2 дні',
+        trigger: AutomationTrigger.CALL_MISSED,
+        triggerConditions: { callAttempts: 2 },
+        actions: [
+          {
+            action: AutomationAction.SCHEDULE_FOLLOW_UP,
+            params: { delayMinutes: 2880, message: 'Повторний дзвінок - клієнт не відповів (спроба 2)' }
+          }
+        ],
+        isActive: true,
+        priority: 84,
+      },
+      {
+        name: 'Третій no_answer - відправити SMS',
+        description: 'Після 2 невдалих спроб відправити SMS клієнту',
+        trigger: AutomationTrigger.CALL_MISSED,
+        triggerConditions: { callAttempts: 3 },
+        actions: [
+          {
+            action: AutomationAction.SEND_SMS,
+            params: {
+              templateType: 'no_answer',
+              message: 'Доброго дня, {{firstName}}! Ми намагалися зв\'язатися з вами. Зателефонуйте нам: {{managerPhone}} або напишіть.'
+            }
+          },
+          {
+            action: AutomationAction.SCHEDULE_FOLLOW_UP,
+            params: { delayMinutes: 4320, message: 'Фінальна спроба контакту після SMS (3 дні)' }
+          }
+        ],
+        isActive: true,
+        priority: 83,
+      },
+      {
+        name: 'Четвертий no_answer - перевести в cold/unreachable',
+        description: 'Якщо клієнт не відповів після SMS, перевести в unreachable статус',
+        trigger: AutomationTrigger.CALL_MISSED,
+        triggerConditions: { callAttempts: 4 },
+        actions: [
+          {
+            action: AutomationAction.SEND_NOTIFICATION,
+            params: {
+              notificationType: NotificationType.SYSTEM,
+              title: 'Лід unreachable',
+              message: 'Лід {{firstName}} {{lastName}} переведено в статус unreachable після 4 спроб контакту'
+            }
+          }
+        ],
+        isActive: true,
+        priority: 82,
+      },
+
+      // === TASK MANAGEMENT ===
       {
         name: 'Прострочена задача - ескалація',
         description: 'Якщо задача прострочена, ескалювати адміну',
@@ -275,19 +392,8 @@ export class AutomationService {
         isActive: true,
         priority: 90,
       },
-      {
-        name: 'Пропущений дзвінок - follow-up через 2 години',
-        description: 'Якщо клієнт не відповів, створити follow-up задачу',
-        trigger: AutomationTrigger.CALL_MISSED,
-        actions: [
-          {
-            action: AutomationAction.SCHEDULE_FOLLOW_UP,
-            params: { delayMinutes: 120, message: 'Повторний дзвінок - клієнт не відповів раніше' }
-          }
-        ],
-        isActive: true,
-        priority: 80,
-      },
+
+      // === DEPOSIT WORKFLOW ===
       {
         name: 'Депозит отримано - повідомлення',
         description: 'Коли отримано депозит, повідомити менеджера',
@@ -298,12 +404,56 @@ export class AutomationService {
             params: {
               notificationType: NotificationType.DEPOSIT_RECEIVED,
               title: 'Депозит отримано',
-              message: 'Клієнт вніс депозит: ${{amount}}'
+              message: 'Клієнт вніс депозит: {{amount}} USD'
             }
           }
         ],
         isActive: true,
         priority: 95,
+      },
+
+      // === NO RESPONSE TRIGGERS ===
+      {
+        name: 'Немає відповіді 24 години - нагадування',
+        description: 'Якщо лід не контактував 24 години, нагадати менеджеру',
+        trigger: AutomationTrigger.NO_RESPONSE_24H,
+        actions: [
+          {
+            action: AutomationAction.SEND_NOTIFICATION,
+            params: {
+              notificationType: NotificationType.SYSTEM,
+              title: 'Нагадування',
+              message: 'Лід {{firstName}} {{lastName}} не контактував більше 24 годин'
+            }
+          },
+          {
+            action: AutomationAction.SCHEDULE_CALLBACK,
+            params: { delayMinutes: 30 }
+          }
+        ],
+        isActive: true,
+        priority: 70,
+      },
+      {
+        name: 'Немає відповіді 48 годин - ескалація',
+        description: 'Якщо лід не контактував 48 годин, ескалювати',
+        trigger: AutomationTrigger.NO_RESPONSE_48H,
+        actions: [
+          {
+            action: AutomationAction.ESCALATE_TO_ADMIN,
+            params: {}
+          },
+          {
+            action: AutomationAction.SEND_NOTIFICATION,
+            params: {
+              notificationType: NotificationType.SYSTEM,
+              title: 'Ескалація: немає контакту',
+              message: 'Лід {{firstName}} {{lastName}} не контактував більше 48 годин. Потрібна увага!'
+            }
+          }
+        ],
+        isActive: true,
+        priority: 75,
       },
     ];
 

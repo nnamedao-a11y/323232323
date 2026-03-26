@@ -80,9 +80,11 @@ export enum AutomationAction {
   SEND_NOTIFICATION = 'send_notification',
   SEND_EMAIL = 'send_email',
   SEND_SMS = 'send_sms',
+  SEND_VIBER = 'send_viber', // Future
   ESCALATE_TO_ADMIN = 'escalate_to_admin',
   SCHEDULE_CALLBACK = 'schedule_callback',
   SCHEDULE_FOLLOW_UP = 'schedule_follow_up',
+  UPDATE_CONTACT_STATUS = 'update_contact_status',
 }
 
 // Lead Source

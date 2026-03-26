@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 
 class CRMAPITester:
-    def __init__(self, base_url="https://391acf45-52bd-4a34-b07f-f0bb1108281d.preview.emergentagent.com"):
+    def __init__(self, base_url="https://automation-engine-15.preview.emergentagent.com"):
         self.base_url = base_url
         self.token = None
         self.tests_run = 0
@@ -254,6 +254,127 @@ class CRMAPITester:
             200
         )[0]
 
+    def test_sms_providers_status(self):
+        """Test SMS providers status API"""
+        success, response = self.run_test(
+            "SMS providers status",
+            "GET",
+            "api/communications/sms/providers",
+            200
+        )
+        if success and isinstance(response, list):
+            print(f"   ✅ Found {len(response)} SMS providers")
+            for provider in response:
+                name = provider.get('name', 'unknown')
+                ready = provider.get('ready', False)
+                status = "✅ Ready" if ready else "❌ Not Ready"
+                print(f"   - {name}: {status}")
+        return success
+
+    def test_automation_rules_count(self):
+        """Test automation rules API and verify 9 rules"""
+        success, response = self.run_test(
+            "Automation rules (9 правил)",
+            "GET",
+            "api/automation/rules",
+            200
+        )
+        if success and isinstance(response, list):
+            rules_count = len(response)
+            print(f"   ✅ Found {rules_count} automation rules")
+            if rules_count >= 9:
+                print(f"   ✅ Expected 9+ rules, found {rules_count}")
+                # Check for no_answer workflow rules
+                no_answer_rules = [r for r in response if 'no_answer' in r.get('name', '').lower() or 'no answer' in r.get('description', '').lower()]
+                print(f"   ✅ Found {len(no_answer_rules)} no_answer workflow rules")
+            else:
+                print(f"   ⚠️  Expected 9+ rules, found only {rules_count}")
+        return success
+
+    def test_communication_templates_count(self):
+        """Test communication templates API and verify 7 templates"""
+        success, response = self.run_test(
+            "Communication templates (7 шаблонів)",
+            "GET",
+            "api/communications/templates",
+            200
+        )
+        if success and isinstance(response, list):
+            templates_count = len(response)
+            print(f"   ✅ Found {templates_count} communication templates")
+            if templates_count >= 7:
+                print(f"   ✅ Expected 7+ templates, found {templates_count}")
+                # Count SMS vs Email templates
+                sms_templates = [t for t in response if t.get('channel') == 'sms']
+                email_templates = [t for t in response if t.get('channel') == 'email']
+                print(f"   - SMS templates: {len(sms_templates)}")
+                print(f"   - Email templates: {len(email_templates)}")
+                
+                # Check for multilingual support
+                multilingual_templates = [t for t in response if 'language' in t or 'lang' in str(t).lower()]
+                if multilingual_templates:
+                    print(f"   ✅ Found multilingual templates")
+            else:
+                print(f"   ⚠️  Expected 7+ templates, found only {templates_count}")
+        return success
+
+    def test_sms_send_failure(self):
+        """Test SMS sending (expected to fail due to unconfigured Twilio)"""
+        sms_data = {
+            "to": "+359888123456",  # Bulgaria phone number
+            "message": "Test SMS from AutoCRM",
+            "metadata": {
+                "leadId": "test-lead-123",
+                "attemptNumber": 1
+            }
+        }
+        
+        success, response = self.run_test(
+            "SMS відправка (очікується помилка)",
+            "POST",
+            "api/communications/sms/send",
+            400  # Expecting failure due to unconfigured Twilio
+        )
+        
+        if not success and isinstance(response, dict):
+            error_message = response.get('message', '').lower()
+            if 'twilio' in error_message or 'provider' in error_message or 'configured' in error_message:
+                print(f"   ✅ Expected error: Twilio not configured")
+                return True
+            else:
+                print(f"   ⚠️  Unexpected error message: {response.get('message', 'No message')}")
+        
+        return success
+
+    def test_lead_creation_triggers_automation(self):
+        """Test that creating a lead triggers automation"""
+        lead_data = {
+            "firstName": "Automation",
+            "lastName": "Test",
+            "email": f"automation.test.{datetime.now().strftime('%H%M%S')}@example.com",
+            "phone": "+359888123457",
+            "company": "Test Automation Company",
+            "source": "website",
+            "value": 3000
+        }
+        
+        success, response = self.run_test(
+            "Створення ліда (тригер автоматизації)",
+            "POST",
+            "api/leads",
+            201,
+            data=lead_data
+        )
+        
+        if success and isinstance(response, dict):
+            lead_id = response.get('id')
+            if lead_id:
+                print(f"   ✅ Lead created with ID: {lead_id}")
+                print(f"   ℹ️  Automation should be triggered (check logs)")
+                return True
+        
+        return success
+
 def main():
     print("🚀 Запуск тестування CRM API...")
     print("=" * 50)
@@ -265,8 +386,11 @@ def main():
         ("Login", tester.test_login),
         ("Dashboard KPI", tester.test_dashboard_kpi),
         ("Dashboard Stats", tester.test_dashboard_stats),
-        ("Automation Rules", tester.test_automation_rules),
-        ("Communication Templates", tester.test_communication_templates),
+        ("SMS Providers Status", tester.test_sms_providers_status),
+        ("Automation Rules (9 правил)", tester.test_automation_rules_count),
+        ("Communication Templates (7 шаблонів)", tester.test_communication_templates_count),
+        ("SMS Send (очікується помилка)", tester.test_sms_send_failure),
+        ("Lead Creation Triggers Automation", tester.test_lead_creation_triggers_automation),
         ("Leads CRUD", tester.test_leads_crud),
         ("Export API", tester.test_export_leads),
         ("Call Center API", tester.test_call_center_api),

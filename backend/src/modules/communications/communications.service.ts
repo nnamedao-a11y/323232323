@@ -254,13 +254,58 @@ export class CommunicationsService implements OnModuleInit {
           </div>
         `,
       },
+      // === SMS Templates (Bulgarian market optimized) ===
       {
-        name: 'Follow-up SMS',
-        description: 'SMS нагадування для follow-up',
+        name: 'Follow-up SMS (UA)',
+        description: 'SMS нагадування для follow-up - українська',
         channel: CommunicationChannel.SMS,
         type: 'follow_up',
         subject: 'Follow-up',
         content: 'Доброго дня, {{firstName}}! Це {{managerName}} з AutoCRM. Нагадую про нашу розмову. Зателефонуйте, будь ласка: {{managerPhone}}',
+        contentLocalized: {
+          uk: 'Доброго дня, {{firstName}}! Це {{managerName}} з AutoCRM. Нагадую про нашу розмову. Зателефонуйте, будь ласка: {{managerPhone}}',
+          en: 'Hello {{firstName}}! This is {{managerName}} from AutoCRM. Following up on our conversation. Please call: {{managerPhone}}',
+          bg: 'Здравейте {{firstName}}! Това е {{managerName}} от AutoCRM. Напомняме за нашия разговор. Моля, обадете се: {{managerPhone}}',
+        },
+      },
+      {
+        name: 'No Answer SMS',
+        description: 'SMS після невдалих спроб дзвінка',
+        channel: CommunicationChannel.SMS,
+        type: 'no_answer',
+        subject: 'No Answer',
+        content: 'Доброго дня, {{firstName}}! Ми намагалися зв\'язатися з вами. Зателефонуйте нам: {{managerPhone}} або напишіть на email.',
+        contentLocalized: {
+          uk: 'Доброго дня, {{firstName}}! Ми намагалися зв\'язатися з вами. Зателефонуйте нам: {{managerPhone}} або напишіть на email.',
+          en: 'Hello {{firstName}}! We tried to reach you. Please call us: {{managerPhone}} or send an email.',
+          bg: 'Здравейте {{firstName}}! Опитахме се да се свържем с вас. Моля, обадете се: {{managerPhone}} или ни пишете на email.',
+        },
+      },
+      {
+        name: 'Callback Reminder SMS',
+        description: 'SMS нагадування про зворотний дзвінок',
+        channel: CommunicationChannel.SMS,
+        type: 'callback',
+        subject: 'Callback',
+        content: 'Доброго дня! Залишили заявку на {{companyName}}? Ми зателефонуємо вам сьогодні. Дякуємо!',
+        contentLocalized: {
+          uk: 'Доброго дня! Залишили заявку на {{companyName}}? Ми зателефонуємо вам сьогодні. Дякуємо!',
+          en: 'Hello! Left a request at {{companyName}}? We will call you today. Thank you!',
+          bg: 'Здравейте! Оставихте заявка в {{companyName}}? Ще ви се обадим днес. Благодарим!',
+        },
+      },
+      {
+        name: 'Welcome SMS',
+        description: 'SMS привітання для нового ліда',
+        channel: CommunicationChannel.SMS,
+        type: 'welcome',
+        subject: 'Welcome',
+        content: 'Дякуємо за звернення до {{companyName}}! Наш менеджер зв\'яжеться з вами найближчим часом.',
+        contentLocalized: {
+          uk: 'Дякуємо за звернення до {{companyName}}! Наш менеджер зв\'яжеться з вами найближчим часом.',
+          en: 'Thank you for contacting {{companyName}}! Our manager will reach you shortly.',
+          bg: 'Благодарим ви, че се свързахте с {{companyName}}! Нашият мениджър ще се свърже с вас скоро.',
+        },
       },
     ];
 

@@ -2,13 +2,17 @@ import { Process, Processor } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bull';
 import { CommunicationsService } from './communications.service';
+import { SMSProviderManager } from './providers/sms-provider.manager';
 import { CommunicationChannel } from '../../shared/enums';
 
 @Processor('communications')
 export class CommunicationsProcessor {
   private readonly logger = new Logger(CommunicationsProcessor.name);
 
-  constructor(private communicationsService: CommunicationsService) {}
+  constructor(
+    private communicationsService: CommunicationsService,
+    private smsProviderManager: SMSProviderManager,
+  ) {}
 
   @Process('send')
   async handleSend(job: Job<{
@@ -17,8 +21,13 @@ export class CommunicationsProcessor {
     recipient: string;
     subject: string;
     content: string;
+    metadata?: {
+      leadId?: string;
+      customerId?: string;
+      attemptNumber?: number;
+    };
   }>) {
-    const { logId, channel, recipient, subject, content } = job.data;
+    const { logId, channel, recipient, subject, content, metadata } = job.data;
     this.logger.log(`Processing ${channel} message ${logId} to ${recipient}`);
 
     try {
@@ -33,10 +42,28 @@ export class CommunicationsProcessor {
           this.logger.error(`Email failed: ${logId} - ${result.error}`);
         }
       } else if (channel === CommunicationChannel.SMS) {
-        // SMS integration placeholder
-        // For now, mark as pending - SMS provider needs to be integrated
-        this.logger.warn(`SMS sending not implemented yet for ${logId}`);
-        await this.communicationsService.updateStatus(logId, 'pending', undefined, 'SMS service not configured');
+        // Use SMS Provider Manager with fallback support
+        const result = await this.smsProviderManager.send({
+          to: recipient,
+          message: content,
+          metadata: {
+            leadId: metadata?.leadId,
+            customerId: metadata?.customerId,
+            attemptNumber: metadata?.attemptNumber,
+          },
+        });
+        
+        if (result.success) {
+          await this.communicationsService.updateStatus(logId, 'sent', result.messageId);
+          this.logger.log(`SMS sent successfully via ${result.providerName}: ${logId}`);
+        } else {
+          await this.communicationsService.updateStatus(logId, 'failed', undefined, result.errorMessage);
+          this.logger.error(`SMS failed: ${logId} - ${result.errorMessage}`);
+        }
+      } else if (channel === CommunicationChannel.VIBER) {
+        // Future: Use Viber Business provider
+        this.logger.warn(`Viber sending not yet implemented for ${logId}`);
+        await this.communicationsService.updateStatus(logId, 'pending', undefined, 'Viber service not yet implemented');
       } else {
         this.logger.warn(`Unsupported channel ${channel} for ${logId}`);
         await this.communicationsService.updateStatus(logId, 'failed', undefined, `Unsupported channel: ${channel}`);

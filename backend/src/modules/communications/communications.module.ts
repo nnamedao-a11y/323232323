@@ -6,6 +6,9 @@ import { CommunicationsController } from './communications.controller';
 import { CommunicationsProcessor } from './communications.processor';
 import { CommunicationLog, CommunicationLogSchema } from './schemas/communication-log.schema';
 import { MessageTemplate, MessageTemplateSchema } from './schemas/message-template.schema';
+import { TwilioSMSProvider } from './providers/twilio.provider';
+import { ViberBusinessProvider } from './providers/viber.provider';
+import { SMSProviderManager } from './providers/sms-provider.manager';
 
 @Module({
   imports: [
@@ -16,7 +19,13 @@ import { MessageTemplate, MessageTemplateSchema } from './schemas/message-templa
     BullModule.registerQueue({ name: 'communications' }),
   ],
   controllers: [CommunicationsController],
-  providers: [CommunicationsService, CommunicationsProcessor],
-  exports: [CommunicationsService],
+  providers: [
+    CommunicationsService,
+    CommunicationsProcessor,
+    TwilioSMSProvider,
+    ViberBusinessProvider,
+    SMSProviderManager,
+  ],
+  exports: [CommunicationsService, SMSProviderManager],
 })
 export class CommunicationsModule {}

@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { CommunicationsService } from './communications.service';
+import { SMSProviderManager } from './providers/sms-provider.manager';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -8,7 +9,10 @@ import { UserRole, CommunicationChannel } from '../../shared/enums';
 @Controller('communications')
 @UseGuards(JwtAuthGuard)
 export class CommunicationsController {
-  constructor(private readonly communicationsService: CommunicationsService) {}
+  constructor(
+    private readonly communicationsService: CommunicationsService,
+    private readonly smsProviderManager: SMSProviderManager,
+  ) {}
 
   // Надіслати повідомлення
   @Post('send')
@@ -26,6 +30,32 @@ export class CommunicationsController {
       ...data,
       sentBy: req.user.id,
     });
+  }
+
+  // Надіслати SMS напряму
+  @Post('sms/send')
+  async sendSMS(@Body() data: {
+    phone: string;
+    message: string;
+    leadId?: string;
+    customerId?: string;
+  }, @Request() req) {
+    return this.smsProviderManager.send({
+      to: data.phone,
+      message: data.message,
+      metadata: {
+        leadId: data.leadId,
+        customerId: data.customerId,
+      },
+    });
+  }
+
+  // Статус SMS провайдерів
+  @Get('sms/providers')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.MASTER_ADMIN, UserRole.ADMIN)
+  async getSMSProviders() {
+    return this.smsProviderManager.getProvidersStatus();
   }
 
   // Історія комунікацій по ліду/клієнту

@@ -16,6 +16,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
       { name: AutomationLog.name, schema: AutomationLogSchema },
     ]),
     BullModule.registerQueue({ name: 'automation' }),
+    BullModule.registerQueue({ name: 'communications' }),
     forwardRef(() => TasksModule),
     forwardRef(() => NotificationsModule),
   ],

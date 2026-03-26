@@ -3,6 +3,13 @@ import { Document } from 'mongoose';
 import { CommunicationChannel } from '../../../shared/enums';
 import { generateId } from '../../../shared/utils';
 
+// Multilingual content support
+export interface LocalizedContent {
+  uk: string; // Ukrainian - default admin language
+  en?: string; // English
+  bg?: string; // Bulgarian - for client communications
+}
+
 @Schema({ timestamps: true })
 export class MessageTemplate extends Document {
   @Prop({ type: String, default: () => generateId(), unique: true })
@@ -18,15 +25,21 @@ export class MessageTemplate extends Document {
   channel: CommunicationChannel;
 
   @Prop({ required: true })
-  subject: string; // For email
+  subject: string; // Default subject (usually in Ukrainian)
+
+  @Prop({ type: Object })
+  subjectLocalized?: LocalizedContent; // Multilingual subjects
 
   @Prop({ required: true })
-  content: string; // Template content with {{placeholders}}
+  content: string; // Default content (usually in Ukrainian)
+
+  @Prop({ type: Object })
+  contentLocalized?: LocalizedContent; // Multilingual content
 
   @Prop({ type: [String], default: [] })
   variables: string[]; // Available variables like firstName, lastName, etc.
 
-  @Prop({ type: String, enum: ['new_lead', 'task_reminder', 'follow_up', 'deposit_alert', 'welcome', 'custom'], required: true })
+  @Prop({ type: String, enum: ['new_lead', 'task_reminder', 'follow_up', 'no_answer', 'deposit_alert', 'welcome', 'callback', 'custom'], required: true })
   type: string;
 
   @Prop({ default: true })
