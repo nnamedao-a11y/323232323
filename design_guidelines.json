@@ -1,88 +1,92 @@
 {
-  "theme": "light",
-  "archetype": "4 (Swiss & High-Contrast)",
-  "design_philosophy": "Authority, clarity, and function-first. The UI must be highly legible and data-dense, employing the 'Control Room' bento grid pattern. Avoid generic SaaS look by utilizing brutalist-inspired 1px solid borders, zero decorative shadows, and high contrast monochromatic structures with color reserved strictly for statuses (success/error/warning).",
-  "colors": {
-    "background": "#F7F7F8",
-    "surface": "#FFFFFF",
-    "primary": "#0A0A0B",
-    "primary_foreground": "#FFFFFF",
-    "secondary": "#E4E4E7",
-    "secondary_foreground": "#18181B",
-    "border": "#D4D4D8",
-    "muted": "#F4F4F5",
-    "muted_foreground": "#71717A",
-    "accent_blue": "#0055FF",
-    "status": {
-      "success": "#16A34A",
-      "warning": "#EAB308",
-      "error": "#DC2626",
-      "info": "#2563EB"
+  "theme": "dark",
+  "archetype": "5 (Jewel & Luxury) - Modified for Premium SaaS Dashboard",
+  "typography": {
+    "heading_font": "Outfit",
+    "body_font": "Plus Jakarta Sans",
+    "scale": {
+      "h1": "text-4xl tracking-tight font-medium",
+      "h2": "text-2xl tracking-tight font-medium",
+      "h3": "text-xl tracking-tight font-medium",
+      "h4": "text-lg font-medium",
+      "body": "text-sm leading-relaxed",
+      "small": "text-xs tracking-wide uppercase text-zinc-400"
     }
   },
-  "typography": {
-    "heading_font": "Cabinet Grotesk, sans-serif",
-    "body_font": "IBM Plex Sans, sans-serif",
-    "scale": {
-      "h1": "text-3xl font-bold tracking-tight",
-      "h2": "text-2xl font-semibold tracking-tight",
-      "h3": "text-xl font-medium",
-      "body": "text-sm leading-relaxed",
-      "small": "text-xs font-medium uppercase tracking-widest",
-      "metrics": "text-4xl font-black tracking-tighter"
-    },
-    "rules": [
-      "No Inter or Roboto for headings.",
-      "Metrics and KPIs must use large, bold, tightly tracked typography.",
-      "Labels must be uppercase with wide tracking for optical separation.",
-      "Text contrast must meet APCA or WCAG AA (4.5:1) minimum."
-    ]
+  "colors": {
+    "background": "#0A0B0F",
+    "surface": "#13151A",
+    "surface_elevated": "#1C1F26",
+    "primary": "#4F46E5",
+    "primary_hover": "#6366F1",
+    "text_primary": "#F8FAFC",
+    "text_secondary": "#94A3B8",
+    "border": "rgba(255, 255, 255, 0.05)",
+    "success": "#10B981",
+    "warning": "#F59E0B",
+    "danger": "#EF4444"
   },
-  "layout_and_spacing": {
-    "grid_system": "MODE B: THE CONTROL ROOM GRID (Dashboards/Analytics)",
-    "rules": [
-      "Use dense, compact spacing for tables and lists (p-2 to p-4).",
-      "Cards and widgets must have strict 1px solid borders (border-zinc-300).",
-      "Use F-pattern scanning layout with a left sidebar.",
-      "Every pixel utilized in the bento grid: use h-full to stretch children."
-    ]
+  "spacing_and_layout": {
+    "container_padding": "p-6 md:p-8",
+    "gap": "gap-6",
+    "radius": {
+      "card": "rounded-2xl",
+      "button": "rounded-xl",
+      "input": "rounded-xl",
+      "dropdown": "rounded-xl",
+      "pill": "rounded-full"
+    },
+    "shadows": {
+      "card": "shadow-[0_8px_32px_-8px_rgba(0,0,0,0.5)]",
+      "dropdown": "shadow-[0_16px_48px_-12px_rgba(0,0,0,0.6)]",
+      "button_glow": "shadow-[0_0_16px_rgba(79,70,229,0.3)]",
+      "inner_soft": "inset 0 1px 0 0 rgba(255,255,255,0.05)"
+    }
   },
   "components": {
-    "surfaces": "Grid Borders: Flat solid backgrounds with sharp 1px borders. Max border-radius: 4px (rounded-sm) or 0px (rounded-none).",
-    "buttons": "High contrast black/white or strong accent blue. No soft shadows. Solid color changes on hover.",
-    "tables": "Dense rows, left-aligned data, right-aligned numbers. 1px bottom border per row. Alternating row colors are banned; use pure white with hover states.",
-    "inputs": "Shadcn based, but override to 0px or 4px radius with strong border focus rings.",
-    "navigation": "Left vertical sidebar, highly structured. Selected state highlighted with a thick left border or solid background."
+    "card": "bg-[#13151A] rounded-2xl border border-white/5 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.5)] p-6 transition-all duration-300 hover:bg-[#15171E] hover:border-white/10 relative overflow-hidden",
+    "button_primary": "bg-[#4F46E5] text-white rounded-xl px-5 py-2.5 font-medium transition-all duration-300 hover:bg-[#6366F1] hover:shadow-[0_0_16px_rgba(79,70,229,0.3)] active:scale-[0.98] flex items-center justify-center gap-2",
+    "button_secondary": "bg-white/5 text-white rounded-xl px-5 py-2.5 font-medium border border-white/5 transition-all duration-300 hover:bg-white/10 hover:border-white/10 active:scale-[0.98] flex items-center justify-center gap-2",
+    "input": "bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/50 focus:border-[#4F46E5]/50 transition-all",
+    "dropdown_menu": "bg-[#1C1F26] border border-white/10 rounded-xl shadow-[0_16px_48px_-12px_rgba(0,0,0,0.6)] p-1 overflow-hidden backdrop-blur-xl",
+    "dropdown_item": "rounded-lg px-3 py-2 text-sm text-zinc-300 cursor-pointer transition-colors hover:bg-white/5 hover:text-white flex items-center gap-2 outline-none focus:bg-white/5 focus:text-white",
+    "table_container": "bg-[#13151A] rounded-2xl border border-white/5 overflow-hidden shadow-[0_8px_32px_-8px_rgba(0,0,0,0.5)]",
+    "table_header": "bg-black/20 border-b border-white/5 text-zinc-400 font-medium text-xs uppercase tracking-wider py-4 px-6 text-left",
+    "table_row": "border-b border-white/5 transition-colors hover:bg-white/[0.02] last:border-0",
+    "table_cell": "py-4 px-6 text-sm text-zinc-300",
+    "sidebar": "w-64 bg-[#0A0B0F] border-r border-white/5 h-screen flex flex-col p-4",
+    "kpi_card": "relative overflow-hidden bg-[#13151A] rounded-2xl border border-white/5 p-6 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.5)]",
+    "kpi_value": "text-4xl font-medium tracking-tight text-white mt-2",
+    "kpi_label": "text-sm text-zinc-400 font-medium",
+    "badge": "px-2.5 py-0.5 rounded-full text-xs font-medium border border-white/10",
+    "tabs_list": "inline-flex h-10 items-center justify-center rounded-xl bg-black/20 p-1 text-zinc-400",
+    "tabs_trigger": "inline-flex items-center justify-center whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-sm"
   },
   "motion": {
-    "rules": [
-      "Minimalist animations.",
-      "Use quick transitions (150ms) for hover states, no bouncy spring animations.",
-      "Focus rings must snap instantly."
+    "hover": "transition-all duration-300 ease-out",
+    "dropdown": "animate-in fade-in zoom-in-95 duration-200",
+    "page_load": "animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out"
+  },
+  "media": {
+    "images": [
+      {
+        "category": "auth_bg",
+        "url": "https://static.prod-images.emergentagent.com/jobs/589ced29-26da-40a2-a6f9-392ae44275d3/images/45b286a541ef7dfcccd78256b95ba192893706f580e8c7edbff4d77dd565cc48.png",
+        "description": "Abstract luxury dark background with smooth gradient for welcome or auth screens"
+      }
     ]
   },
-  "icons": {
-    "library": "@phosphor-icons/react",
-    "style": "Regular or Bold weight, avoid Duotone for data-heavy apps to keep it sharp and readable."
-  },
-  "images": {
-    "user_avatar": {
-      "url": "https://images.unsplash.com/photo-1629507313712-f21468afdf2e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzJ8MHwxfHNlYXJjaHwyfHxidXNpbmVzcyUyMHByb2Zlc3Npb25hbCUyMHBvcnRyYWl0fGVufDB8fHx8MTc3NDUyNTY3N3ww&ixlib=rb-4.1.0&q=85",
-      "description": "Professional avatar for user profile in the dashboard header/sidebar."
-    },
-    "brand_logo": {
-      "url": "https://images.unsplash.com/photo-1763296840082-cac05bc18337?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2ODl8MHwxfHNlYXJjaHwxfHxjYXIlMjBicmFuZCUyMGxvZ28lMjBtaW5pbWFsfGVufDB8fHx8MTc3NDUyNTcwNnww&ixlib=rb-4.1.0&q=85",
-      "description": "Minimal car logo to use as the CRM branding in the sidebar/login page."
-    }
-  },
+  "icons_library": "@phosphor-icons/react",
   "instructions_to_main_agent": [
-    "ALL text and UI copy MUST be in Ukrainian (e.g., 'Ліди', 'Клієнти', 'Угоди', 'Налаштування').",
-    "Use raw HTML/Tailwind for layout structure but heavily customize Shadcn UI components for complex interactions.",
-    "CRITICAL: Add 'data-testid' attributes to ALL interactive elements, buttons, inputs, tables, and key informational nodes using kebab-case role-based naming (e.g., data-testid='create-lead-button', data-testid='leads-table').",
-    "Implement the 'Control Room Grid' for the dashboard: grid-cols-1 md:grid-cols-3 lg:grid-cols-4 with gap-4 or gap-6. Stretch children using h-full.",
-    "Override Shadcn default styles to match the Swiss High-Contrast theme: remove excessive border-radius (max rounded-sm), remove shadows, enforce 1px solid borders.",
-    "Do NOT use HTML <select> or <input type='date'>. Always use Shadcn Dropdown/Select and Calendar.",
-    "Run 'yarn add @phosphor-icons/react' to install the required icon library.",
-    "Make sure to use .js files for React components as required."
+    "Install `@phosphor-icons/react`, `recharts`, `framer-motion`, `date-fns`, `clsx`, `tailwind-merge`.",
+    "Since the project uses `.js` / `.jsx` files, do NOT create or import `.tsx` files. Ensure all created components and pages use `.jsx` syntax.",
+    "Do NOT use raw HTML for interactive elements like Select, Dialog, or Dropdown. Import the Shadcn UI components provided in `src/components/ui/` and customize their classes via className or by editing the component files directly to apply the exact styles defined in this guideline (rounded-xl/2xl, soft borders border-white/5).",
+    "Update `tailwind.config.js` to extend the fontFamily with `Outfit` (sans) and `Plus Jakarta Sans` (sans), and inject Google Fonts into `index.css`.",
+    "For the 'Period selector (Day/Week/Month)', use Shadcn Tabs or ToggleGroup, styled with `rounded-xl` container and `rounded-lg` active pills with `bg-white/10`.",
+    "KPI Cards must look 'rich'. Add a subtle colored radial gradient in the background of the card using absolute positioning and `blur-3xl`, for example `bg-emerald-500/10` for positive metrics, to simulate a soft glow without hard borders.",
+    "For 'Workload Heatmap', use Recharts. Remove grid lines (`vertical={false} horizontal={false}`), use monotone curve lines, dark tooltips (matching dropdown menu style), and no harsh axis lines.",
+    "Tables should have NO vertical dividers. Horizontal dividers must be `border-white/5`. Wrap the table in the `table_container` class to provide rounded corners and soft shadow.",
+    "Forms must use `rounded-xl` inputs with dark transparent backgrounds (`bg-black/20`) and no sharp borders.",
+    "Add `data-testid` attributes to all interactive elements (buttons, inputs, dropdown items, table rows) for testing."
   ]
 }
