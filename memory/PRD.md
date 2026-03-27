@@ -1,137 +1,172 @@
-# CRM Auto Business Platform (BIBI Cars) - PRD
+# BIBI Cars CRM - VIN Intelligence Engine PRD
 
 ## Original Problem Statement
-Parser Control Center для CRM автобізнесу (BIBI Cars). Створення admin-панелі для керування парсерами (Copart, IAAI) без технічних знань. 
-
-**Ключові вимоги:**
-- Керування парсерами через UI (запустити/зупинити/рестарт)
-- Моніторинг здоров'я системи
-- Керування проксі серверами
-- Перегляд логів та помилок
-- Налаштування конфігурації
-- Система алертів
-- Vehicles UI page (база транспорту)
+CRM система для автобізнесу (BIBI Cars) з парсером аукціонів (Copart/IAAI) та VIN Intelligence Engine для 100% coverage без залежності від API або дорогих проксі.
 
 ## Architecture
 
 ### Tech Stack
 - **Backend:** NestJS + TypeScript + MongoDB
 - **Frontend:** React + Tailwind CSS + Phosphor Icons
-- **Database:** MongoDB (parser state, logs, settings, alerts, vehicles, proxies)
+- **Database:** MongoDB (vehicles, vin_cache, parser state, logs, proxies)
 - **Browser Automation:** Puppeteer + Playwright (chromium-1208)
 
-### User Roles
-1. **MASTER_ADMIN** - повний контроль системи та парсерів
-2. **MODERATOR** - тільки перегляд статусу (без керування)
+### Core Modules
 
-## What's Been Implemented (Date: 2026-03-27)
+#### 1. Pipeline Module (`/modules/pipeline/`)
+- `normalize.service.ts` - нормалізація сирих даних
+- `dedup.service.ts` - дедуплікація по VIN
+- `merge.service.ts` - об'єднання даних з різних джерел
+- `scoring.service.ts` - оцінка якості даних
+- `auction-classifier.service.ts` - класифікація аукціонів
+- `pipeline.service.ts` - головний orchestrator
 
-### Backend (NestJS)
+#### 2. VIN Engine Module (`/modules/vin-engine/`)
+- `search.provider.ts` - пошук через DuckDuckGo
+- `url-filter.service.ts` - фільтрація та пріоритизація URL
+- `extractor.service.ts` - витягування даних зі сторінок
+- `vin-merge.service.ts` - об'єднання результатів
+- `vin-cache.service.ts` - кешування (TTL 7 днів)
+- `vin-search.service.ts` - головний VIN search service
+- `vin-search.controller.ts` - API endpoints
 
-#### Parser Admin Module (`/app/backend/src/modules/ingestion/admin/`)
-1. **Schemas:**
-   - `ParserState` - стан парсера (status, lastRunAt, stats)
-   - `ParserLog` - логи запусків та помилок
-   - `ParserSetting` - налаштування парсера
-   - `ParserAlert` - системні алерти
+#### 3. Ingestion Module (existing)
+- Parser runners (Copart, IAAI)
+- Antiblock system (Circuit Breaker, Proxy Pool, Fingerprint)
+- Vehicles service
 
-2. **Services:**
-   - `ParserAdminService` - головний orchestration service
-   - `ParserControlService` - керування парсерами (run/stop/restart)
-   - `ParserHealthAdminService` - health monitoring
-   - `ParserLogsService` - логування
-   - `ParserAlertsService` - система алертів
-   - `ProxyAdminService` - керування проксі
+## User Flow
 
-3. **Controllers:**
-   - `ParserAdminController` - основні endpoints
-   - `ProxyAdminController` - proxy management
-
-4. **API Endpoints:**
-   - Parser Control: run, stop, resume, restart, run-all, stop-all
-   - Health: overview, source-specific
-   - Logs: with filters and pagination
-   - Settings: get/update per source
-   - Alerts: list, resolve
-   - Proxies: CRUD + test
-
-#### Ingestion Module (`/app/backend/src/modules/ingestion/`)
-- `CopartRunner` - парсер для Copart з XHR interception
-- `IAAIRunner` - парсер для IAAI
-- `VehicleService` - CRUD операції для vehicles
-- `UniversalScraper` - браузерний скрапер з проксі підтримкою
-
-#### Antiblock System (`/app/backend/src/modules/ingestion/antiblock/`)
-- `CircuitBreakerService` - захист від hammering
-- `ParserHealthService` - моніторинг здоров'я
-- `ParserGuardService` - orchestration для безпечного парсингу
-- `HttpFingerprintService` - ротація fingerprints
-- `EnhancedProxyPoolService` - failover proxy pool з MongoDB persistence
-
-### Frontend (React)
-
-#### Pages:
-- **ParserControl.js** (`/parser`) - керування парсерами
-- **ProxyManager.js** (`/parser/proxies`) - керування проксі
-- **ParserLogs.js** (`/parser/logs`) - логи
-- **ParserSettings.js** (`/parser/settings`) - налаштування
-- **Vehicles.js** (`/vehicles`) - база авто з карточками, фільтрами, статистикою
-
-### Test Results (2026-03-27)
-- Backend: 100% passed (10 API endpoints)
-- Frontend: 100% passed (login, dashboard, vehicles, parser control)
-
-## Configuration Notes
-
-### Proxy Setup
-- Проксі зберігаються в MongoDB collection `system_proxies`
-- Підтримка authentication (username:password)
-- Priority-based failover (не rotation)
-- Automatic cooldown при помилках
-
-### Browser Path
+### VIN Search Flow
 ```
-/pw-browsers/chromium-1208/chrome-linux/chrome
+User вводить VIN
+    ↓
+1. Пошук в Database
+    ↓
+Знайдено? → Повертаємо результат
+    ↓ (Ні)
+2. Перевірка Cache
+    ↓
+В кеші? → Повертаємо/зберігаємо в DB
+    ↓ (Ні)
+3. Web Search (DuckDuckGo)
+    ↓
+4. URL Filter & Prioritize
+    ↓
+5. Extract data from pages
+    ↓
+6. Merge results
+    ↓
+7. Score & Save to DB + Cache
+    ↓
+Повертаємо результат
 ```
+
+## API Endpoints
+
+### VIN Engine
+- `GET /api/vin/search?vin=XXX` - публічний пошук VIN
+- `GET /api/vin/:vin` - пошук за параметром
+- `GET /api/vin/admin/cache-stats` - статистика кешу (admin)
+- `DELETE /api/vin/admin/cache/:vin?` - очистка кешу (admin)
+- `POST /api/vin/:vin/refresh` - примусове оновлення (admin)
+
+### Vehicles
+- `GET /api/vehicles` - список авто
+- `GET /api/vehicles/:id` - деталі авто
+- `GET /api/vehicles/stats` - статистика
+- `GET /api/vehicles/makes` - список марок
+
+### Parser Admin
+- `GET /api/ingestion/admin/parsers` - статус парсерів
+- `POST /api/ingestion/admin/parsers/:source/run` - запуск
+- `POST /api/ingestion/admin/parsers/:source/stop` - зупинка
+
+## Implemented Features (2026-03-27)
+
+### Backend
+- [x] Pipeline Module (normalize, dedup, merge, scoring)
+- [x] VIN Intelligence Engine (search, extract, cache)
+- [x] Parser Control Center APIs
+- [x] Vehicles CRUD with filters
+- [x] Proxy management with MongoDB persistence
+- [x] Health monitoring & Circuit Breaker
+
+### Frontend
+- [x] VIN Search page with results display
+- [x] Parser Control Center
+- [x] Vehicles page with cards
+- [x] Proxy Manager
+- [x] Parser Logs & Settings
+
+### Test Results
+- Backend: 100% (14/14 tests passed)
+- Frontend: 95% (VIN search, vehicles working)
+
+## Data Quality Scoring
+
+```javascript
+score = 
+  hasVIN(17 chars) * 0.25 +
+  hasSaleDate * 0.20 +
+  hasImages * 0.15 +
+  hasPrice * 0.10 +
+  hasTitle * 0.10 +
+  hasDamageInfo * 0.05 +
+  hasMileage * 0.05 +
+  hasLocation * 0.05 +
+  sourceTrust * 0.05
+```
+
+### Source Trust Scores
+- copart, iaai: 0.95
+- autobidmaster, salvagebid: 0.85-0.90
+- bidfax, poctra: 0.70-0.80
+- vin_search, google: 0.50-0.60
+
+## Configuration
 
 ### Credentials
 - Admin: admin@crm.com / admin123
-- API URL: https://a11y-testing.preview.emergentagent.com
+- API: https://a11y-testing.preview.emergentagent.com
+
+### Cache Settings
+- VIN Cache TTL: 7 days
+- Auto-expire via MongoDB TTL index
 
 ## Known Limitations
 
-1. **Copart/IAAI Parsing:**
-   - Cloudflare захист блокує браузерний скрапінг
-   - Потрібні residential proxies або official API access
-   - Тестові дані для vehicles заповнені вручну
+1. **Real Copart/IAAI Parsing:**
+   - Cloudflare захист блокує datacenter proxies
+   - Потрібні residential/mobile proxies або API access
 
-2. **Proxy Requirements:**
-   - Datacenter проксі блокуються Cloudflare
-   - Рекомендовано: residential/mobile proxies
-   - Мінімум 5-10 проксі для стабільної роботи
+2. **Web Search:**
+   - Rate limited by search engines
+   - Not realtime (cache required)
 
-## P0 - Critical (Implemented)
-- [x] Parser Control Center UI
-- [x] Health Monitoring
-- [x] Proxy Management з MongoDB persistence
-- [x] Settings Management
-- [x] Vehicles UI page
-- [x] Create Lead from Vehicle
-- [x] Browser automation з proxy support
+## Backlog
 
-## P1 - High Priority (Backlog)
-- [ ] Real Copart/IAAI API credentials або residential proxies
-- [ ] WebSocket real-time dashboard updates
-- [ ] Self-healing automation
+### P0 (Critical)
+- [x] VIN Intelligence Engine
+- [x] Pipeline Module
+- [x] VIN Search UI
 
-## P2 - Medium (Backlog)
-- [ ] VIN Search public page
-- [ ] Public Website з каталогом авто
+### P1 (High Priority)
+- [ ] Residential proxies для Copart/IAAI
+- [ ] WebSocket real-time updates
+- [ ] Cron jobs для автопарсингу
+
+### P2 (Medium)
+- [ ] Public VIN Search landing page (SEO)
 - [ ] Client Cabinet
-- [ ] Reviews module
+- [ ] Mobile responsive optimization
+
+### P3 (Nice to have)
+- [ ] Email notifications
+- [ ] Export to CSV/Excel
+- [ ] API rate limiting
 
 ## Next Steps
-1. Отримати residential/mobile проксі для обходу Cloudflare
-2. Або отримати official API access до Copart/IAAI
-3. Налаштувати cron jobs для автоматичного парсингу
-4. Додати WebSocket для live updates
+1. Додати residential/mobile proxies
+2. Налаштувати cron для парсингу кожні 4 години
+3. Публічна VIN Search сторінка для SEO
