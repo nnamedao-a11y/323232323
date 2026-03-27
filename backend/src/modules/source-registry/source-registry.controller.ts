@@ -1,0 +1,87 @@
+/**
+ * Source Registry Controller
+ * 
+ * API endpoints для керування джерелами VIN
+ */
+
+import { Controller, Get, Patch, Param, Body, UseGuards, Post } from '@nestjs/common';
+import { SourceRegistryService } from './source-registry.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from '../../shared/enums';
+
+@Controller('admin/sources')
+@UseGuards(JwtAuthGuard, RolesGuard)
+export class SourceRegistryController {
+  constructor(private readonly service: SourceRegistryService) {}
+
+  /**
+   * GET /api/admin/sources - список всіх джерел
+   */
+  @Get()
+  @Roles(UserRole.MASTER_ADMIN, UserRole.MODERATOR)
+  async getAll() {
+    const sources = await this.service.getAll();
+    const stats = await this.service.getStats();
+    return { sources, stats };
+  }
+
+  /**
+   * GET /api/admin/sources/enabled - тільки активні
+   */
+  @Get('enabled')
+  @Roles(UserRole.MASTER_ADMIN, UserRole.MODERATOR)
+  async getEnabled() {
+    return this.service.getEnabledSources();
+  }
+
+  /**
+   * PATCH /api/admin/sources/:name/toggle - вкл/викл джерело
+   */
+  @Patch(':name/toggle')
+  @Roles(UserRole.MASTER_ADMIN)
+  async toggle(
+    @Param('name') name: string,
+    @Body() body: { enabled: boolean },
+  ) {
+    await this.service.toggle(name, body.enabled);
+    return { success: true, message: `Source ${name} ${body.enabled ? 'enabled' : 'disabled'}` };
+  }
+
+  /**
+   * PATCH /api/admin/sources/:name/weight - змінити вагу
+   */
+  @Patch(':name/weight')
+  @Roles(UserRole.MASTER_ADMIN)
+  async updateWeight(
+    @Param('name') name: string,
+    @Body() body: { weight: number },
+  ) {
+    await this.service.updateWeight(name, body.weight);
+    return { success: true, message: `Weight for ${name} updated to ${body.weight}` };
+  }
+
+  /**
+   * PATCH /api/admin/sources/:name/priority - змінити пріоритет
+   */
+  @Patch(':name/priority')
+  @Roles(UserRole.MASTER_ADMIN)
+  async updatePriority(
+    @Param('name') name: string,
+    @Body() body: { priority: number },
+  ) {
+    await this.service.updatePriority(name, body.priority);
+    return { success: true, message: `Priority for ${name} updated to ${body.priority}` };
+  }
+
+  /**
+   * POST /api/admin/sources/:name/reset-stats - скинути статистику
+   */
+  @Post(':name/reset-stats')
+  @Roles(UserRole.MASTER_ADMIN)
+  async resetStats(@Param('name') name: string) {
+    await this.service.resetStats(name);
+    return { success: true, message: `Stats for ${name} reset` };
+  }
+}

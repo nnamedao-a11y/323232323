@@ -1,14 +1,91 @@
-import React, { useState } from 'react';
-import { MagnifyingGlass, Car, Tag, Calendar, MapPin, CurrencyDollar, SpinnerGap, CheckCircle, XCircle, Images } from '@phosphor-icons/react';
-import axios from 'axios';
+/**
+ * VIN Search Page - Admin Panel
+ * 
+ * VIN Intelligence Engine з керуванням джерелами
+ */
 
-const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+import React, { useState, useEffect } from 'react';
+import { 
+  MagnifyingGlass, 
+  Car, 
+  Tag, 
+  Calendar, 
+  MapPin, 
+  SpinnerGap, 
+  CheckCircle, 
+  XCircle, 
+  Images,
+  Database,
+  Globe,
+  Lightning,
+  Gauge,
+  ArrowsClockwise,
+  Sliders,
+  Power,
+  CaretRight,
+  Clock,
+  ChartBar
+} from '@phosphor-icons/react';
+import axios from 'axios';
+import { toast } from 'sonner';
+import { useAuth, API_URL } from '../App';
+
+// Source type badge
+const SourceTypeBadge = ({ type }) => {
+  const config = {
+    database: { color: 'bg-blue-100 text-blue-700', label: 'База' },
+    aggregator: { color: 'bg-green-100 text-green-700', label: 'Агрегатор' },
+    competitor: { color: 'bg-yellow-100 text-yellow-700', label: 'Конкурент' },
+    web_search: { color: 'bg-purple-100 text-purple-700', label: 'Web' },
+  };
+  const cfg = config[type] || { color: 'bg-gray-100 text-gray-600', label: type };
+  return (
+    <span className={`px-2 py-0.5 rounded text-xs font-medium ${cfg.color}`}>
+      {cfg.label}
+    </span>
+  );
+};
+
+// Success rate display
+const SuccessRate = ({ successCount, failCount }) => {
+  const total = successCount + failCount;
+  if (total === 0) return <span className="text-[#71717A]">—</span>;
+  const rate = Math.round((successCount / total) * 100);
+  const color = rate >= 80 ? 'text-green-600' : rate >= 50 ? 'text-yellow-600' : 'text-red-600';
+  return <span className={`font-semibold ${color}`}>{rate}%</span>;
+};
 
 const VinSearch = () => {
+  const { user } = useAuth();
+  const isMasterAdmin = user?.role === 'master_admin';
+  
   const [vin, setVin] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  
+  // Sources state
+  const [sources, setSources] = useState([]);
+  const [sourcesLoading, setSourcesLoading] = useState(false);
+  const [stats, setStats] = useState(null);
+  const [showSources, setShowSources] = useState(false);
+
+  useEffect(() => {
+    fetchSources();
+  }, []);
+
+  const fetchSources = async () => {
+    setSourcesLoading(true);
+    try {
+      const response = await axios.get(`${API_URL}/api/admin/sources`);
+      setSources(response.data.sources || []);
+      setStats(response.data.stats || null);
+    } catch (err) {
+      console.error('Failed to fetch sources:', err);
+    } finally {
+      setSourcesLoading(false);
+    }
+  };
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -25,10 +102,42 @@ const VinSearch = () => {
     try {
       const response = await axios.get(`${API_URL}/api/vin/search?vin=${vin.toUpperCase()}`);
       setResult(response.data);
+      // Refresh sources to update stats
+      fetchSources();
     } catch (err) {
       setError(err.response?.data?.message || 'Помилка пошуку');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleSource = async (name, enabled) => {
+    try {
+      await axios.patch(`${API_URL}/api/admin/sources/${name}/toggle`, { enabled: !enabled });
+      toast.success(`Джерело ${name} ${!enabled ? 'увімкнено' : 'вимкнено'}`);
+      fetchSources();
+    } catch (err) {
+      toast.error('Помилка оновлення');
+    }
+  };
+
+  const updateWeight = async (name, weight) => {
+    try {
+      await axios.patch(`${API_URL}/api/admin/sources/${name}/weight`, { weight });
+      toast.success(`Вага для ${name} оновлена`);
+      fetchSources();
+    } catch (err) {
+      toast.error('Помилка оновлення');
+    }
+  };
+
+  const resetStats = async (name) => {
+    try {
+      await axios.post(`${API_URL}/api/admin/sources/${name}/reset-stats`);
+      toast.success(`Статистика ${name} скинута`);
+      fetchSources();
+    } catch (err) {
+      toast.error('Помилка скидання');
     }
   };
 
@@ -43,84 +152,202 @@ const VinSearch = () => {
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div data-testid="vin-search-page">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
-          <MagnifyingGlass size={32} weight="bold" className="text-[#00D4FF]" />
-          VIN Intelligence Engine
-        </h1>
-        <p className="text-gray-400">
-          Пошук інформації про авто за VIN кодом • 100% coverage
-        </p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-[#18181B]" style={{ fontFamily: 'Cabinet Grotesk, sans-serif' }}>
+            VIN Intelligence Engine
+          </h1>
+          <p className="text-sm text-[#71717A] mt-1">
+            Пошук інформації про авто за VIN кодом
+          </p>
+        </div>
+        <button
+          onClick={() => setShowSources(!showSources)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-white border border-[#E4E4E7] rounded-xl text-[#18181B] hover:bg-[#F4F4F5] transition-all"
+          data-testid="toggle-sources-btn"
+        >
+          <Sliders size={18} />
+          <span>Джерела</span>
+          <CaretRight size={14} className={`transition-transform ${showSources ? 'rotate-90' : ''}`} />
+        </button>
       </div>
 
+      {/* Sources Panel */}
+      {showSources && (
+        <div className="mb-6 bg-white rounded-2xl border border-[#E4E4E7] p-6" data-testid="sources-panel">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-[#18181B] flex items-center gap-2">
+              <Database size={20} />
+              Джерела даних
+            </h2>
+            {stats && (
+              <div className="flex items-center gap-4 text-sm">
+                <span className="text-[#71717A]">Всього: <b className="text-[#18181B]">{stats.total}</b></span>
+                <span className="text-green-600">Активних: <b>{stats.enabled}</b></span>
+                <span className="text-[#71717A]">Вимкнено: <b>{stats.disabled}</b></span>
+              </div>
+            )}
+          </div>
+
+          {sourcesLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <SpinnerGap size={24} className="animate-spin text-[#71717A]" />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-[#E4E4E7]">
+                    <th className="text-left py-3 px-4 text-xs font-semibold text-[#71717A] uppercase tracking-wider">Джерело</th>
+                    <th className="text-left py-3 px-4 text-xs font-semibold text-[#71717A] uppercase tracking-wider">Тип</th>
+                    <th className="text-center py-3 px-4 text-xs font-semibold text-[#71717A] uppercase tracking-wider">Статус</th>
+                    <th className="text-center py-3 px-4 text-xs font-semibold text-[#71717A] uppercase tracking-wider">Вага</th>
+                    <th className="text-center py-3 px-4 text-xs font-semibold text-[#71717A] uppercase tracking-wider">Success Rate</th>
+                    <th className="text-center py-3 px-4 text-xs font-semibold text-[#71717A] uppercase tracking-wider">Avg Time</th>
+                    {isMasterAdmin && (
+                      <th className="text-right py-3 px-4 text-xs font-semibold text-[#71717A] uppercase tracking-wider">Дії</th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sources.map((source) => (
+                    <tr key={source.name} className="border-b border-[#F4F4F5] hover:bg-[#FAFAFA] transition-colors" data-testid={`source-row-${source.name}`}>
+                      <td className="py-3 px-4">
+                        <div>
+                          <p className="font-medium text-[#18181B]">{source.displayName || source.name}</p>
+                          <p className="text-xs text-[#71717A]">{source.description}</p>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <SourceTypeBadge type={source.type} />
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <button
+                          onClick={() => isMasterAdmin && toggleSource(source.name, source.enabled)}
+                          disabled={!isMasterAdmin}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                            source.enabled 
+                              ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                          } ${!isMasterAdmin ? 'cursor-default' : 'cursor-pointer'}`}
+                          data-testid={`toggle-${source.name}`}
+                        >
+                          <Power size={12} weight="bold" />
+                          {source.enabled ? 'ON' : 'OFF'}
+                        </button>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        {isMasterAdmin ? (
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={Math.round(source.weight * 100)}
+                            onChange={(e) => updateWeight(source.name, e.target.value / 100)}
+                            className="w-16 h-1 accent-[#18181B]"
+                            data-testid={`weight-${source.name}`}
+                          />
+                        ) : null}
+                        <span className="ml-2 text-sm font-medium text-[#18181B]">{Math.round(source.weight * 100)}%</span>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <SuccessRate successCount={source.successCount} failCount={source.failCount} />
+                        <span className="text-xs text-[#71717A] ml-1">
+                          ({source.successCount}/{source.successCount + source.failCount})
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-center text-sm text-[#71717A]">
+                        {source.avgResponseTime > 0 ? `${source.avgResponseTime}ms` : '—'}
+                      </td>
+                      {isMasterAdmin && (
+                        <td className="py-3 px-4 text-right">
+                          <button
+                            onClick={() => resetStats(source.name)}
+                            className="text-xs text-[#71717A] hover:text-[#18181B] transition-colors"
+                            data-testid={`reset-${source.name}`}
+                          >
+                            <ArrowsClockwise size={14} />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Search Form */}
-      <form onSubmit={handleSearch} className="mb-8">
-        <div className="flex gap-4">
+      <div className="bg-white rounded-2xl border border-[#E4E4E7] p-6 mb-6">
+        <form onSubmit={handleSearch} className="flex gap-4">
           <div className="flex-1 relative">
+            <MagnifyingGlass size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#71717A]" />
             <input
               type="text"
               value={vin}
               onChange={(e) => setVin(e.target.value.toUpperCase().replace(/[^A-HJ-NPR-Z0-9]/g, ''))}
-              placeholder="Введіть VIN код (наприклад: 1HGBH41JXMN109186)"
-              className="w-full px-4 py-4 bg-[#1E2530] border border-[#2D3748] rounded-xl text-white text-lg font-mono tracking-wider placeholder:text-gray-500 focus:border-[#00D4FF] focus:outline-none transition-colors"
+              placeholder="Введіть VIN код (17 символів)"
+              className="w-full pl-12 pr-16 py-3.5 bg-[#F4F4F5] border border-transparent rounded-xl text-[#18181B] text-lg font-mono tracking-wider placeholder:text-[#A1A1AA] focus:bg-white focus:border-[#18181B] focus:outline-none transition-all"
               maxLength={17}
               data-testid="vin-search-input"
             />
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[#A1A1AA] text-sm font-mono">
               {vin.length}/17
             </div>
           </div>
           <button
             type="submit"
             disabled={loading || vin.length < 11}
-            className="px-8 py-4 bg-gradient-to-r from-[#00D4FF] to-[#00A3CC] text-[#0A0E17] font-semibold rounded-xl hover:shadow-lg hover:shadow-[#00D4FF]/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+            className="px-8 py-3.5 bg-[#18181B] text-white font-semibold rounded-xl hover:bg-[#27272A] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
             data-testid="vin-search-button"
           >
             {loading ? (
-              <SpinnerGap size={24} className="animate-spin" />
+              <SpinnerGap size={20} className="animate-spin" />
             ) : (
-              <MagnifyingGlass size={24} weight="bold" />
+              <MagnifyingGlass size={20} weight="bold" />
             )}
             {loading ? 'Пошук...' : 'Знайти'}
           </button>
-        </div>
-      </form>
+        </form>
+      </div>
 
       {/* Error */}
       {error && (
-        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-3 text-red-400">
-          <XCircle size={24} />
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3 text-red-700" data-testid="search-error">
+          <XCircle size={20} weight="fill" />
           {error}
         </div>
       )}
 
       {/* Result */}
       {result && (
-        <div className="bg-[#151A23] border border-[#2D3748] rounded-2xl overflow-hidden">
+        <div className="bg-white rounded-2xl border border-[#E4E4E7] overflow-hidden" data-testid="search-result">
           {/* Status Banner */}
           <div className={`px-6 py-4 flex items-center justify-between ${
-            result.success ? 'bg-green-500/10 border-b border-green-500/20' : 'bg-orange-500/10 border-b border-orange-500/20'
+            result.success ? 'bg-green-50 border-b border-green-200' : 'bg-yellow-50 border-b border-yellow-200'
           }`}>
             <div className="flex items-center gap-3">
               {result.success ? (
-                <CheckCircle size={28} weight="fill" className="text-green-500" />
+                <CheckCircle size={24} weight="fill" className="text-green-600" />
               ) : (
-                <XCircle size={28} weight="fill" className="text-orange-500" />
+                <XCircle size={24} weight="fill" className="text-yellow-600" />
               )}
               <div>
-                <p className={`font-semibold ${result.success ? 'text-green-400' : 'text-orange-400'}`}>
+                <p className={`font-semibold ${result.success ? 'text-green-700' : 'text-yellow-700'}`}>
                   {result.message}
                 </p>
-                <p className="text-sm text-gray-400">
+                <p className="text-sm text-[#71717A]">
                   Джерело: <span className="font-mono">{result.source}</span> • 
                   Час пошуку: {result.searchDurationMs}ms
                 </p>
               </div>
             </div>
-            <div className="px-4 py-1 bg-[#0A0E17]/50 rounded-full">
-              <span className="font-mono text-sm text-[#00D4FF]">{result.vin}</span>
+            <div className="px-3 py-1.5 bg-white/80 rounded-lg border border-[#E4E4E7]">
+              <span className="font-mono text-sm text-[#18181B]">{result.vin}</span>
             </div>
           </div>
 
@@ -134,17 +361,16 @@ const VinSearch = () => {
                     <img
                       src={result.vehicle.primaryImage || result.vehicle.images[0]}
                       alt={result.vehicle.title}
-                      className="w-full h-64 object-cover rounded-xl"
+                      className="w-full h-56 object-cover rounded-xl"
                     />
                   ) : (
-                    <div className="w-full h-64 bg-[#1E2530] rounded-xl flex items-center justify-center">
-                      <Car size={64} className="text-gray-600" />
+                    <div className="w-full h-56 bg-[#F4F4F5] rounded-xl flex items-center justify-center">
+                      <Car size={64} className="text-[#D4D4D8]" />
                     </div>
                   )}
                   
-                  {/* Image count */}
                   {result.vehicle.images?.length > 1 && (
-                    <div className="mt-2 flex items-center gap-2 text-gray-400 text-sm">
+                    <div className="mt-3 flex items-center gap-2 text-[#71717A] text-sm">
                       <Images size={16} />
                       {result.vehicle.images.length} фото
                     </div>
@@ -156,66 +382,67 @@ const VinSearch = () => {
                   {/* Title & Price */}
                   <div className="flex justify-between items-start">
                     <div>
-                      <h2 className="text-2xl font-bold text-white">
+                      <h2 className="text-xl font-bold text-[#18181B]">
                         {result.vehicle.title || `${result.vehicle.year || ''} ${result.vehicle.make || ''} ${result.vehicle.vehicleModel || result.vehicle.model || ''}`}
                       </h2>
-                      <p className="text-gray-400 font-mono text-sm mt-1">
+                      <p className="text-[#71717A] font-mono text-sm mt-1">
                         VIN: {result.vehicle.vin}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-3xl font-bold text-[#00D4FF]">
+                      <p className="text-2xl font-bold text-[#18181B]">
                         {formatPrice(result.vehicle.price)}
                       </p>
                       {result.vehicle.score && (
-                        <p className="text-sm text-gray-400">
-                          Якість даних: {Math.round(result.vehicle.score * 100)}%
+                        <p className="text-sm text-[#71717A] flex items-center gap-1 justify-end">
+                          <Gauge size={14} />
+                          Якість: {Math.round(result.vehicle.score * 100)}%
                         </p>
                       )}
                     </div>
                   </div>
 
                   {/* Specs Grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    <div className="p-4 bg-[#1E2530] rounded-xl">
-                      <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Рік</p>
-                      <p className="text-white font-semibold">{result.vehicle.year || 'Н/Д'}</p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <div className="p-3 bg-[#F4F4F5] rounded-xl">
+                      <p className="text-[#71717A] text-xs uppercase tracking-wider mb-0.5">Рік</p>
+                      <p className="text-[#18181B] font-semibold">{result.vehicle.year || 'Н/Д'}</p>
                     </div>
-                    <div className="p-4 bg-[#1E2530] rounded-xl">
-                      <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Пробіг</p>
-                      <p className="text-white font-semibold">
+                    <div className="p-3 bg-[#F4F4F5] rounded-xl">
+                      <p className="text-[#71717A] text-xs uppercase tracking-wider mb-0.5">Пробіг</p>
+                      <p className="text-[#18181B] font-semibold">
                         {result.vehicle.mileage ? `${result.vehicle.mileage.toLocaleString()} ${result.vehicle.mileageUnit || 'mi'}` : 'Н/Д'}
                       </p>
                     </div>
-                    <div className="p-4 bg-[#1E2530] rounded-xl">
-                      <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Пошкодження</p>
-                      <p className="text-white font-semibold capitalize">
+                    <div className="p-3 bg-[#F4F4F5] rounded-xl">
+                      <p className="text-[#71717A] text-xs uppercase tracking-wider mb-0.5">Пошкодження</p>
+                      <p className="text-[#18181B] font-semibold capitalize">
                         {result.vehicle.damageType || result.vehicle.damageDescription || 'Н/Д'}
                       </p>
                     </div>
-                    <div className="p-4 bg-[#1E2530] rounded-xl flex items-start gap-2">
-                      <Calendar size={20} className="text-[#00D4FF] mt-0.5" />
+                    <div className="p-3 bg-[#F4F4F5] rounded-xl flex items-start gap-2">
+                      <Calendar size={16} className="text-[#71717A] mt-0.5" />
                       <div>
-                        <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Дата аукціону</p>
-                        <p className="text-white font-semibold">
+                        <p className="text-[#71717A] text-xs uppercase tracking-wider mb-0.5">Дата аукціону</p>
+                        <p className="text-[#18181B] font-semibold">
                           {formatDate(result.vehicle.auctionDate || result.vehicle.saleDate)}
                         </p>
                       </div>
                     </div>
-                    <div className="p-4 bg-[#1E2530] rounded-xl flex items-start gap-2">
-                      <MapPin size={20} className="text-[#00D4FF] mt-0.5" />
+                    <div className="p-3 bg-[#F4F4F5] rounded-xl flex items-start gap-2">
+                      <MapPin size={16} className="text-[#71717A] mt-0.5" />
                       <div>
-                        <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Локація</p>
-                        <p className="text-white font-semibold">
+                        <p className="text-[#71717A] text-xs uppercase tracking-wider mb-0.5">Локація</p>
+                        <p className="text-[#18181B] font-semibold">
                           {result.vehicle.auctionLocation || result.vehicle.location || 'Н/Д'}
                         </p>
                       </div>
                     </div>
-                    <div className="p-4 bg-[#1E2530] rounded-xl flex items-start gap-2">
-                      <Tag size={20} className="text-[#00D4FF] mt-0.5" />
+                    <div className="p-3 bg-[#F4F4F5] rounded-xl flex items-start gap-2">
+                      <Tag size={16} className="text-[#71717A] mt-0.5" />
                       <div>
-                        <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Lot #</p>
-                        <p className="text-white font-semibold font-mono">
+                        <p className="text-[#71717A] text-xs uppercase tracking-wider mb-0.5">Lot #</p>
+                        <p className="text-[#18181B] font-semibold font-mono">
                           {result.vehicle.lotNumber || result.vehicle.externalId || 'Н/Д'}
                         </p>
                       </div>
@@ -224,11 +451,11 @@ const VinSearch = () => {
 
                   {/* Sources */}
                   {result.vehicle.sources && result.vehicle.sources.length > 0 && (
-                    <div className="pt-4 border-t border-[#2D3748]">
-                      <p className="text-gray-500 text-xs uppercase tracking-wider mb-2">Джерела даних</p>
+                    <div className="pt-4 border-t border-[#E4E4E7]">
+                      <p className="text-[#71717A] text-xs uppercase tracking-wider mb-2">Джерела даних</p>
                       <div className="flex flex-wrap gap-2">
                         {result.vehicle.sources.map((src, idx) => (
-                          <span key={idx} className="px-3 py-1 bg-[#1E2530] rounded-full text-sm text-gray-300 capitalize">
+                          <span key={idx} className="px-2.5 py-1 bg-[#F4F4F5] rounded-lg text-sm text-[#52525B] capitalize">
                             {src}
                           </span>
                         ))}
@@ -242,8 +469,9 @@ const VinSearch = () => {
                       href={result.vehicle.sourceUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-[#00D4FF] hover:underline text-sm"
+                      className="inline-flex items-center gap-1 text-[#18181B] hover:underline text-sm font-medium"
                     >
+                      <Globe size={14} />
                       Переглянути на джерелі →
                     </a>
                   )}
@@ -255,12 +483,12 @@ const VinSearch = () => {
           {/* Not Found State */}
           {!result.success && !result.vehicle && (
             <div className="p-12 text-center">
-              <Car size={64} className="mx-auto text-gray-600 mb-4" />
-              <h3 className="text-xl text-white font-semibold mb-2">
+              <Car size={64} className="mx-auto text-[#D4D4D8] mb-4" />
+              <h3 className="text-xl text-[#18181B] font-semibold mb-2">
                 Інформацію не знайдено
               </h3>
-              <p className="text-gray-400 max-w-md mx-auto">
-                Система не знайшла інформацію про цей VIN код. Спробуйте інший VIN або зверніться до підтримки.
+              <p className="text-[#71717A] max-w-md mx-auto">
+                Система не знайшла інформацію про цей VIN код. Перевірте правильність VIN або спробуйте пізніше.
               </p>
             </div>
           )}
@@ -268,32 +496,38 @@ const VinSearch = () => {
       )}
 
       {/* Info Cards */}
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="p-4 bg-[#151A23] border border-[#2D3748] rounded-xl">
-          <h3 className="text-white font-semibold mb-2 flex items-center gap-2">
-            <CheckCircle size={20} className="text-green-500" />
-            Database Search
-          </h3>
-          <p className="text-gray-400 text-sm">
-            Спочатку шукаємо в нашій базі даних з 5+ авто
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="p-4 bg-white border border-[#E4E4E7] rounded-xl">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+              <Database size={16} className="text-blue-600" />
+            </div>
+            <h3 className="font-semibold text-[#18181B]">Database Search</h3>
+          </div>
+          <p className="text-[#71717A] text-sm">
+            Пошук у власній базі vehicles
           </p>
         </div>
-        <div className="p-4 bg-[#151A23] border border-[#2D3748] rounded-xl">
-          <h3 className="text-white font-semibold mb-2 flex items-center gap-2">
-            <MagnifyingGlass size={20} className="text-[#00D4FF]" />
-            Web Intelligence
-          </h3>
-          <p className="text-gray-400 text-sm">
-            Якщо не в базі - шукаємо через 20+ джерел онлайн
+        <div className="p-4 bg-white border border-[#E4E4E7] rounded-xl">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+              <Globe size={16} className="text-purple-600" />
+            </div>
+            <h3 className="font-semibold text-[#18181B]">Multi-Source</h3>
+          </div>
+          <p className="text-[#71717A] text-sm">
+            Пошук через {sources.filter(s => s.enabled).length}+ активних джерел
           </p>
         </div>
-        <div className="p-4 bg-[#151A23] border border-[#2D3748] rounded-xl">
-          <h3 className="text-white font-semibold mb-2 flex items-center gap-2">
-            <Tag size={20} className="text-yellow-500" />
-            Smart Caching
-          </h3>
-          <p className="text-gray-400 text-sm">
-            Результати кешуються на 7 днів для швидкості
+        <div className="p-4 bg-white border border-[#E4E4E7] rounded-xl">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+              <Lightning size={16} className="text-green-600" />
+            </div>
+            <h3 className="font-semibold text-[#18181B]">Smart Caching</h3>
+          </div>
+          <p className="text-[#71717A] text-sm">
+            Кешування на 7 днів для швидкості
           </p>
         </div>
       </div>

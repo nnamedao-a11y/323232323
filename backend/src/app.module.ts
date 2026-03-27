@@ -32,6 +32,7 @@ import { IngestionModule } from './modules/ingestion/ingestion.module';
 import { IngestionAdminModule } from './modules/ingestion/admin/ingestion-admin.module';
 import { PipelineModule } from './modules/pipeline/pipeline.module';
 import { VinEngineModule } from './modules/vin-engine/vin-engine.module';
+import { SourceRegistryModule } from './modules/source-registry/source-registry.module';
 
 @Module({
   imports: [
@@ -78,6 +79,7 @@ import { VinEngineModule } from './modules/vin-engine/vin-engine.module';
     IngestionAdminModule,
     PipelineModule,
     VinEngineModule,
+    SourceRegistryModule,
   ],
 })
 export class AppModule {}
