@@ -1,7 +1,7 @@
 /**
  * VIN Search Page - Admin Panel
  * 
- * VIN Intelligence Engine з керуванням джерелами
+ * VIN Intelligence Engine з auto-optimization
  */
 
 import React, { useState, useEffect } from 'react';
@@ -24,11 +24,33 @@ import {
   Power,
   CaretRight,
   Clock,
-  ChartBar
+  ChartBar,
+  Heart,
+  Warning,
+  Pulse
 } from '@phosphor-icons/react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { useAuth, API_URL } from '../App';
+
+// Health badge
+const HealthBadge = ({ health }) => {
+  const config = {
+    excellent: { color: 'bg-green-100 text-green-700', icon: Heart },
+    good: { color: 'bg-blue-100 text-blue-700', icon: CheckCircle },
+    fair: { color: 'bg-yellow-100 text-yellow-700', icon: Pulse },
+    poor: { color: 'bg-orange-100 text-orange-700', icon: Warning },
+    critical: { color: 'bg-red-100 text-red-700', icon: XCircle },
+  };
+  const cfg = config[health] || config.fair;
+  const Icon = cfg.icon;
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${cfg.color}`}>
+      <Icon size={12} weight="fill" />
+      {health.toUpperCase()}
+    </span>
+  );
+};
 
 // Source type badge
 const SourceTypeBadge = ({ type }) => {
@@ -46,13 +68,24 @@ const SourceTypeBadge = ({ type }) => {
   );
 };
 
-// Success rate display
-const SuccessRate = ({ successCount, failCount }) => {
-  const total = successCount + failCount;
-  if (total === 0) return <span className="text-[#71717A]">—</span>;
-  const rate = Math.round((successCount / total) * 100);
-  const color = rate >= 80 ? 'text-green-600' : rate >= 50 ? 'text-yellow-600' : 'text-red-600';
-  return <span className={`font-semibold ${color}`}>{rate}%</span>;
+// Status badge
+const StatusBadge = ({ enabled, autoDisabled }) => {
+  if (autoDisabled) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+        <Warning size={12} weight="bold" />
+        AUTO-OFF
+      </span>
+    );
+  }
+  return (
+    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
+      enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+    }`}>
+      <Power size={12} weight="bold" />
+      {enabled ? 'ON' : 'OFF'}
+    </span>
+  );
 };
 
 const VinSearch = () => {
@@ -69,6 +102,7 @@ const VinSearch = () => {
   const [sourcesLoading, setSourcesLoading] = useState(false);
   const [stats, setStats] = useState(null);
   const [showSources, setShowSources] = useState(false);
+  const [recomputing, setRecomputing] = useState(false);
 
   useEffect(() => {
     fetchSources();
@@ -102,7 +136,7 @@ const VinSearch = () => {
     try {
       const response = await axios.get(`${API_URL}/api/vin/search?vin=${vin.toUpperCase()}`);
       setResult(response.data);
-      // Refresh sources to update stats
+      // Refresh sources to see updated stats
       fetchSources();
     } catch (err) {
       setError(err.response?.data?.message || 'Помилка пошуку');
@@ -124,7 +158,6 @@ const VinSearch = () => {
   const updateWeight = async (name, weight) => {
     try {
       await axios.patch(`${API_URL}/api/admin/sources/${name}/weight`, { weight });
-      toast.success(`Вага для ${name} оновлена`);
       fetchSources();
     } catch (err) {
       toast.error('Помилка оновлення');
@@ -141,6 +174,29 @@ const VinSearch = () => {
     }
   };
 
+  const forceRecompute = async () => {
+    setRecomputing(true);
+    try {
+      const response = await axios.post(`${API_URL}/api/admin/sources/recompute`);
+      toast.success(`Оптимізація: ${response.data.updated} оновлено`);
+      fetchSources();
+    } catch (err) {
+      toast.error('Помилка оптимізації');
+    } finally {
+      setRecomputing(false);
+    }
+  };
+
+  const autoEnableSource = async (name) => {
+    try {
+      await axios.post(`${API_URL}/api/admin/sources/${name}/auto-enable`);
+      toast.success(`Джерело ${name} примусово увімкнено`);
+      fetchSources();
+    } catch (err) {
+      toast.error('Помилка увімкнення');
+    }
+  };
+
   const formatPrice = (price) => {
     if (!price) return 'Н/Д';
     return new Intl.NumberFormat('uk-UA', { style: 'currency', currency: 'USD' }).format(price);
@@ -149,6 +205,20 @@ const VinSearch = () => {
   const formatDate = (date) => {
     if (!date) return 'Н/Д';
     return new Date(date).toLocaleDateString('uk-UA');
+  };
+
+  // Calculate health from source data
+  const getSourceHealth = (source) => {
+    const total = source.totalSearches || 0;
+    if (total < 5) return 'fair';
+    const successRate = total > 0 ? (source.successCount || 0) / total : 0;
+    const exactMatchRate = total > 0 ? (source.exactMatchCount || 0) / total : 0;
+    
+    if (successRate >= 0.8 && exactMatchRate >= 0.6) return 'excellent';
+    if (successRate >= 0.6 && exactMatchRate >= 0.4) return 'good';
+    if (successRate >= 0.4 && exactMatchRate >= 0.2) return 'fair';
+    if (successRate >= 0.2) return 'poor';
+    return 'critical';
   };
 
   return (
@@ -160,18 +230,31 @@ const VinSearch = () => {
             VIN Intelligence Engine
           </h1>
           <p className="text-sm text-[#71717A] mt-1">
-            Пошук інформації про авто за VIN кодом
+            Пошук інформації про авто • Auto-Optimization
           </p>
         </div>
-        <button
-          onClick={() => setShowSources(!showSources)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-white border border-[#E4E4E7] rounded-xl text-[#18181B] hover:bg-[#F4F4F5] transition-all"
-          data-testid="toggle-sources-btn"
-        >
-          <Sliders size={18} />
-          <span>Джерела</span>
-          <CaretRight size={14} className={`transition-transform ${showSources ? 'rotate-90' : ''}`} />
-        </button>
+        <div className="flex items-center gap-3">
+          {isMasterAdmin && (
+            <button
+              onClick={forceRecompute}
+              disabled={recomputing}
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#18181B] text-white rounded-xl hover:bg-[#27272A] disabled:opacity-50 transition-all"
+              data-testid="recompute-btn"
+            >
+              <Lightning size={18} className={recomputing ? 'animate-pulse' : ''} />
+              <span>{recomputing ? 'Оптимізація...' : 'Оптимізувати'}</span>
+            </button>
+          )}
+          <button
+            onClick={() => setShowSources(!showSources)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-[#E4E4E7] rounded-xl text-[#18181B] hover:bg-[#F4F4F5] transition-all"
+            data-testid="toggle-sources-btn"
+          >
+            <Sliders size={18} />
+            <span>Джерела</span>
+            <CaretRight size={14} className={`transition-transform ${showSources ? 'rotate-90' : ''}`} />
+          </button>
+        </div>
       </div>
 
       {/* Sources Panel */}
@@ -180,13 +263,15 @@ const VinSearch = () => {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-[#18181B] flex items-center gap-2">
               <Database size={20} />
-              Джерела даних
+              Джерела даних (Auto-Optimization)
             </h2>
             {stats && (
               <div className="flex items-center gap-4 text-sm">
                 <span className="text-[#71717A]">Всього: <b className="text-[#18181B]">{stats.total}</b></span>
                 <span className="text-green-600">Активних: <b>{stats.enabled}</b></span>
-                <span className="text-[#71717A]">Вимкнено: <b>{stats.disabled}</b></span>
+                {stats.autoDisabled > 0 && (
+                  <span className="text-red-600">Auto-OFF: <b>{stats.autoDisabled}</b></span>
+                )}
               </div>
             )}
           </div>
@@ -200,84 +285,150 @@ const VinSearch = () => {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-[#E4E4E7]">
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-[#71717A] uppercase tracking-wider">Джерело</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-[#71717A] uppercase tracking-wider">Тип</th>
-                    <th className="text-center py-3 px-4 text-xs font-semibold text-[#71717A] uppercase tracking-wider">Статус</th>
-                    <th className="text-center py-3 px-4 text-xs font-semibold text-[#71717A] uppercase tracking-wider">Вага</th>
-                    <th className="text-center py-3 px-4 text-xs font-semibold text-[#71717A] uppercase tracking-wider">Success Rate</th>
-                    <th className="text-center py-3 px-4 text-xs font-semibold text-[#71717A] uppercase tracking-wider">Avg Time</th>
+                    <th className="text-left py-3 px-3 text-xs font-semibold text-[#71717A] uppercase tracking-wider">Джерело</th>
+                    <th className="text-left py-3 px-3 text-xs font-semibold text-[#71717A] uppercase tracking-wider">Тип</th>
+                    <th className="text-center py-3 px-3 text-xs font-semibold text-[#71717A] uppercase tracking-wider">Health</th>
+                    <th className="text-center py-3 px-3 text-xs font-semibold text-[#71717A] uppercase tracking-wider">Статус</th>
+                    <th className="text-center py-3 px-3 text-xs font-semibold text-[#71717A] uppercase tracking-wider w-28">
+                      <span className="flex items-center justify-center gap-1">
+                        Manual
+                        <span className="text-[10px] text-[#A1A1AA]">(адмін)</span>
+                      </span>
+                    </th>
+                    <th className="text-center py-3 px-3 text-xs font-semibold text-[#71717A] uppercase tracking-wider">
+                      <span className="flex items-center justify-center gap-1">
+                        System
+                        <span className="text-[10px] text-[#A1A1AA]">(авто)</span>
+                      </span>
+                    </th>
+                    <th className="text-center py-3 px-3 text-xs font-semibold text-[#71717A] uppercase tracking-wider">Effective</th>
+                    <th className="text-center py-3 px-3 text-xs font-semibold text-[#71717A] uppercase tracking-wider">Searches</th>
+                    <th className="text-center py-3 px-3 text-xs font-semibold text-[#71717A] uppercase tracking-wider">Success</th>
+                    <th className="text-center py-3 px-3 text-xs font-semibold text-[#71717A] uppercase tracking-wider">Exact</th>
                     {isMasterAdmin && (
-                      <th className="text-right py-3 px-4 text-xs font-semibold text-[#71717A] uppercase tracking-wider">Дії</th>
+                      <th className="text-right py-3 px-3 text-xs font-semibold text-[#71717A] uppercase tracking-wider">Дії</th>
                     )}
                   </tr>
                 </thead>
                 <tbody>
-                  {sources.map((source) => (
-                    <tr key={source.name} className="border-b border-[#F4F4F5] hover:bg-[#FAFAFA] transition-colors" data-testid={`source-row-${source.name}`}>
-                      <td className="py-3 px-4">
-                        <div>
-                          <p className="font-medium text-[#18181B]">{source.displayName || source.name}</p>
-                          <p className="text-xs text-[#71717A]">{source.description}</p>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <SourceTypeBadge type={source.type} />
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <button
-                          onClick={() => isMasterAdmin && toggleSource(source.name, source.enabled)}
-                          disabled={!isMasterAdmin}
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                            source.enabled 
-                              ? 'bg-green-100 text-green-700 hover:bg-green-200' 
-                              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                          } ${!isMasterAdmin ? 'cursor-default' : 'cursor-pointer'}`}
-                          data-testid={`toggle-${source.name}`}
-                        >
-                          <Power size={12} weight="bold" />
-                          {source.enabled ? 'ON' : 'OFF'}
-                        </button>
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        {isMasterAdmin ? (
-                          <input
-                            type="range"
-                            min="0"
-                            max="100"
-                            value={Math.round(source.weight * 100)}
-                            onChange={(e) => updateWeight(source.name, e.target.value / 100)}
-                            className="w-16 h-1 accent-[#18181B]"
-                            data-testid={`weight-${source.name}`}
-                          />
-                        ) : null}
-                        <span className="ml-2 text-sm font-medium text-[#18181B]">{Math.round(source.weight * 100)}%</span>
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <SuccessRate successCount={source.successCount} failCount={source.failCount} />
-                        <span className="text-xs text-[#71717A] ml-1">
-                          ({source.successCount}/{source.successCount + source.failCount})
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-center text-sm text-[#71717A]">
-                        {source.avgResponseTime > 0 ? `${source.avgResponseTime}ms` : '—'}
-                      </td>
-                      {isMasterAdmin && (
-                        <td className="py-3 px-4 text-right">
+                  {sources.map((source) => {
+                    const total = source.totalSearches || 0;
+                    const successRate = total > 0 ? ((source.successCount || 0) / total * 100).toFixed(0) : '-';
+                    const exactRate = total > 0 ? ((source.exactMatchCount || 0) / total * 100).toFixed(0) : '-';
+                    const health = getSourceHealth(source);
+
+                    return (
+                      <tr key={source.name} className="border-b border-[#F4F4F5] hover:bg-[#FAFAFA] transition-colors" data-testid={`source-row-${source.name}`}>
+                        <td className="py-3 px-3">
+                          <div>
+                            <p className="font-medium text-[#18181B]">{source.displayName || source.name}</p>
+                            {source.autoDisabledReason && (
+                              <p className="text-xs text-red-500 mt-0.5 max-w-[200px] truncate" title={source.autoDisabledReason}>
+                                {source.autoDisabledReason}
+                              </p>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3 px-3">
+                          <SourceTypeBadge type={source.type} />
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          <HealthBadge health={health} />
+                        </td>
+                        <td className="py-3 px-3 text-center">
                           <button
-                            onClick={() => resetStats(source.name)}
-                            className="text-xs text-[#71717A] hover:text-[#18181B] transition-colors"
-                            data-testid={`reset-${source.name}`}
+                            onClick={() => source.autoDisabled 
+                              ? autoEnableSource(source.name) 
+                              : (isMasterAdmin && toggleSource(source.name, source.enabled))
+                            }
+                            disabled={!isMasterAdmin && !source.autoDisabled}
+                            className="cursor-pointer disabled:cursor-default"
+                            data-testid={`toggle-${source.name}`}
                           >
-                            <ArrowsClockwise size={14} />
+                            <StatusBadge enabled={source.enabled} autoDisabled={source.autoDisabled} />
                           </button>
                         </td>
-                      )}
-                    </tr>
-                  ))}
+                        <td className="py-3 px-3 text-center">
+                          {isMasterAdmin ? (
+                            <div className="flex items-center justify-center gap-2">
+                              <input
+                                type="range"
+                                min="0"
+                                max="100"
+                                value={Math.round((source.manualWeight || 0.7) * 100)}
+                                onChange={(e) => updateWeight(source.name, e.target.value / 100)}
+                                className="w-14 h-1 accent-[#18181B]"
+                                data-testid={`weight-${source.name}`}
+                              />
+                              <span className="text-sm font-mono text-[#18181B] w-10">
+                                {Math.round((source.manualWeight || 0.7) * 100)}%
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-sm font-mono text-[#18181B]">
+                              {Math.round((source.manualWeight || 0.7) * 100)}%
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          <span className={`text-sm font-mono ${
+                            (source.systemScore || 1) >= 0.8 ? 'text-green-600' :
+                            (source.systemScore || 1) >= 0.5 ? 'text-yellow-600' : 'text-red-600'
+                          }`}>
+                            {Math.round((source.systemScore || 1) * 100)}%
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          <span className="text-sm font-bold text-[#18181B]">
+                            {Math.round((source.effectiveWeight || 0.7) * 100)}%
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-center text-sm text-[#71717A]">
+                          {total}
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          <span className={`text-sm font-semibold ${
+                            successRate === '-' ? 'text-[#71717A]' :
+                            parseInt(successRate) >= 70 ? 'text-green-600' :
+                            parseInt(successRate) >= 40 ? 'text-yellow-600' : 'text-red-600'
+                          }`}>
+                            {successRate}{successRate !== '-' && '%'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          <span className={`text-sm font-semibold ${
+                            exactRate === '-' ? 'text-[#71717A]' :
+                            parseInt(exactRate) >= 50 ? 'text-green-600' :
+                            parseInt(exactRate) >= 25 ? 'text-yellow-600' : 'text-red-600'
+                          }`}>
+                            {exactRate}{exactRate !== '-' && '%'}
+                          </span>
+                        </td>
+                        {isMasterAdmin && (
+                          <td className="py-3 px-3 text-right">
+                            <button
+                              onClick={() => resetStats(source.name)}
+                              className="p-1.5 text-[#71717A] hover:text-[#18181B] hover:bg-[#F4F4F5] rounded-lg transition-colors"
+                              title="Скинути статистику"
+                              data-testid={`reset-${source.name}`}
+                            >
+                              <ArrowsClockwise size={16} />
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           )}
+
+          {/* Legend */}
+          <div className="mt-4 pt-4 border-t border-[#E4E4E7] text-xs text-[#71717A]">
+            <p><b>Manual</b> — вага, встановлена адміном | <b>System</b> — автоматично вирахувана система | <b>Effective</b> = Manual × System</p>
+            <p className="mt-1">Система автоматично перераховує ваги кожні 15 хв на основі success rate, exact match rate, response time.</p>
+          </div>
         </div>
       )}
 
@@ -342,7 +493,7 @@ const VinSearch = () => {
                 </p>
                 <p className="text-sm text-[#71717A]">
                   Джерело: <span className="font-mono">{result.source}</span> • 
-                  Час пошуку: {result.searchDurationMs}ms
+                  Час: {result.searchDurationMs}ms
                 </p>
               </div>
             </div>
@@ -411,13 +562,13 @@ const VinSearch = () => {
                     <div className="p-3 bg-[#F4F4F5] rounded-xl">
                       <p className="text-[#71717A] text-xs uppercase tracking-wider mb-0.5">Пробіг</p>
                       <p className="text-[#18181B] font-semibold">
-                        {result.vehicle.mileage ? `${result.vehicle.mileage.toLocaleString()} ${result.vehicle.mileageUnit || 'mi'}` : 'Н/Д'}
+                        {result.vehicle.mileage ? `${result.vehicle.mileage.toLocaleString()} mi` : 'Н/Д'}
                       </p>
                     </div>
                     <div className="p-3 bg-[#F4F4F5] rounded-xl">
                       <p className="text-[#71717A] text-xs uppercase tracking-wider mb-0.5">Пошкодження</p>
                       <p className="text-[#18181B] font-semibold capitalize">
-                        {result.vehicle.damageType || result.vehicle.damageDescription || 'Н/Д'}
+                        {result.vehicle.damageType || 'Н/Д'}
                       </p>
                     </div>
                     <div className="p-3 bg-[#F4F4F5] rounded-xl flex items-start gap-2">
@@ -443,25 +594,11 @@ const VinSearch = () => {
                       <div>
                         <p className="text-[#71717A] text-xs uppercase tracking-wider mb-0.5">Lot #</p>
                         <p className="text-[#18181B] font-semibold font-mono">
-                          {result.vehicle.lotNumber || result.vehicle.externalId || 'Н/Д'}
+                          {result.vehicle.lotNumber || 'Н/Д'}
                         </p>
                       </div>
                     </div>
                   </div>
-
-                  {/* Sources */}
-                  {result.vehicle.sources && result.vehicle.sources.length > 0 && (
-                    <div className="pt-4 border-t border-[#E4E4E7]">
-                      <p className="text-[#71717A] text-xs uppercase tracking-wider mb-2">Джерела даних</p>
-                      <div className="flex flex-wrap gap-2">
-                        {result.vehicle.sources.map((src, idx) => (
-                          <span key={idx} className="px-2.5 py-1 bg-[#F4F4F5] rounded-lg text-sm text-[#52525B] capitalize">
-                            {src}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
 
                   {/* Source URL */}
                   {result.vehicle.sourceUrl && (
@@ -488,7 +625,7 @@ const VinSearch = () => {
                 Інформацію не знайдено
               </h3>
               <p className="text-[#71717A] max-w-md mx-auto">
-                Система не знайшла інформацію про цей VIN код. Перевірте правильність VIN або спробуйте пізніше.
+                Система перевірила {sources.filter(s => s.enabled && !s.autoDisabled).length} джерел, але не знайшла інформацію про цей VIN.
               </p>
             </div>
           )}
@@ -502,32 +639,32 @@ const VinSearch = () => {
             <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
               <Database size={16} className="text-blue-600" />
             </div>
-            <h3 className="font-semibold text-[#18181B]">Database Search</h3>
+            <h3 className="font-semibold text-[#18181B]">Multi-Source</h3>
           </div>
           <p className="text-[#71717A] text-sm">
-            Пошук у власній базі vehicles
+            Пошук через {sources.filter(s => s.enabled && !s.autoDisabled).length} активних джерел
           </p>
         </div>
         <div className="p-4 bg-white border border-[#E4E4E7] rounded-xl">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-              <Globe size={16} className="text-purple-600" />
+              <Lightning size={16} className="text-purple-600" />
             </div>
-            <h3 className="font-semibold text-[#18181B]">Multi-Source</h3>
+            <h3 className="font-semibold text-[#18181B]">Auto-Optimization</h3>
           </div>
           <p className="text-[#71717A] text-sm">
-            Пошук через {sources.filter(s => s.enabled).length}+ активних джерел
+            Автоматичне ранжування джерел за продуктивністю
           </p>
         </div>
         <div className="p-4 bg-white border border-[#E4E4E7] rounded-xl">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-              <Lightning size={16} className="text-green-600" />
+              <Heart size={16} className="text-green-600" />
             </div>
-            <h3 className="font-semibold text-[#18181B]">Smart Caching</h3>
+            <h3 className="font-semibold text-[#18181B]">Self-Healing</h3>
           </div>
           <p className="text-[#71717A] text-sm">
-            Кешування на 7 днів для швидкості
+            Автоматичне вимкнення слабких джерел
           </p>
         </div>
       </div>

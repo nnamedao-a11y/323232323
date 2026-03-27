@@ -1,11 +1,12 @@
 /**
  * Source Registry Controller
  * 
- * API endpoints для керування джерелами VIN
+ * Admin API для керування джерелами VIN + auto-optimization
  */
 
 import { Controller, Get, Patch, Param, Body, UseGuards, Post } from '@nestjs/common';
 import { SourceRegistryService } from './source-registry.service';
+import { SourceOptimizationService } from './source-optimization.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -14,10 +15,13 @@ import { UserRole } from '../../shared/enums';
 @Controller('admin/sources')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class SourceRegistryController {
-  constructor(private readonly service: SourceRegistryService) {}
+  constructor(
+    private readonly service: SourceRegistryService,
+    private readonly optimization: SourceOptimizationService,
+  ) {}
 
   /**
-   * GET /api/admin/sources - список всіх джерел
+   * GET /api/admin/sources - список всіх джерел з stats
    */
   @Get()
   @Roles(UserRole.MASTER_ADMIN, UserRole.MODERATOR)
@@ -37,6 +41,15 @@ export class SourceRegistryController {
   }
 
   /**
+   * GET /api/admin/sources/report - optimization report
+   */
+  @Get('report')
+  @Roles(UserRole.MASTER_ADMIN, UserRole.MODERATOR)
+  async getReport() {
+    return this.optimization.getReport();
+  }
+
+  /**
    * PATCH /api/admin/sources/:name/toggle - вкл/викл джерело
    */
   @Patch(':name/toggle')
@@ -50,7 +63,7 @@ export class SourceRegistryController {
   }
 
   /**
-   * PATCH /api/admin/sources/:name/weight - змінити вагу
+   * PATCH /api/admin/sources/:name/weight - змінити manual weight
    */
   @Patch(':name/weight')
   @Roles(UserRole.MASTER_ADMIN)
@@ -58,21 +71,8 @@ export class SourceRegistryController {
     @Param('name') name: string,
     @Body() body: { weight: number },
   ) {
-    await this.service.updateWeight(name, body.weight);
-    return { success: true, message: `Weight for ${name} updated to ${body.weight}` };
-  }
-
-  /**
-   * PATCH /api/admin/sources/:name/priority - змінити пріоритет
-   */
-  @Patch(':name/priority')
-  @Roles(UserRole.MASTER_ADMIN)
-  async updatePriority(
-    @Param('name') name: string,
-    @Body() body: { priority: number },
-  ) {
-    await this.service.updatePriority(name, body.priority);
-    return { success: true, message: `Priority for ${name} updated to ${body.priority}` };
+    await this.service.updateManualWeight(name, body.weight);
+    return { success: true, message: `Manual weight for ${name} updated to ${body.weight}` };
   }
 
   /**
@@ -83,5 +83,29 @@ export class SourceRegistryController {
   async resetStats(@Param('name') name: string) {
     await this.service.resetStats(name);
     return { success: true, message: `Stats for ${name} reset` };
+  }
+
+  /**
+   * POST /api/admin/sources/recompute - примусово перерахувати всі ваги
+   */
+  @Post('recompute')
+  @Roles(UserRole.MASTER_ADMIN)
+  async recompute() {
+    const result = await this.optimization.recomputeAll();
+    return { 
+      success: true, 
+      message: `Recomputed: ${result.updated} updated, ${result.disabled} disabled, ${result.enabled} enabled`,
+      ...result,
+    };
+  }
+
+  /**
+   * POST /api/admin/sources/:name/auto-enable - примусово ввімкнути auto-disabled джерело
+   */
+  @Post(':name/auto-enable')
+  @Roles(UserRole.MASTER_ADMIN)
+  async autoEnable(@Param('name') name: string) {
+    await this.service.autoEnable(name);
+    return { success: true, message: `Source ${name} force-enabled` };
   }
 }
