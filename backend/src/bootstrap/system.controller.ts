@@ -72,7 +72,7 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.MASTER_ADMIN)
   async reRunBootstrap(): Promise<BootstrapStatus> {
-    return this.bootstrapService.runBootstrap();
+    return this.bootstrapService.quickBoot();
   }
 
   /**

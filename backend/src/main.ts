@@ -2,31 +2,36 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
-import { SeedService } from './bootstrap/seed.service';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
+  const startTime = Date.now();
   
-  logger.log('🚀 Starting CRM Application...');
+  logger.log('⚡ BIBI CRM Quick Start v3.0...');
   
-  const app = await NestFactory.create(AppModule);
+  // Create app with optimized settings
+  const app = await NestFactory.create(AppModule, {
+    logger: ['error', 'warn', 'log'],
+    bufferLogs: true,
+  });
   
   const configService = app.get(ConfigService);
   
-  // CORS
+  // CORS - permissive for development
   app.enableCors({
-    origin: configService.get('CORS_ORIGINS')?.split(',') || '*',
+    origin: '*',
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
 
   // Global prefix
   app.setGlobalPrefix('api');
 
-  // Validation
+  // Validation with transform
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-      forbidNonWhitelisted: true,
+      forbidNonWhitelisted: false, // Less strict for faster processing
       transform: true,
       transformOptions: {
         enableImplicitConversion: true,
@@ -34,16 +39,21 @@ async function bootstrap() {
     }),
   );
 
-  // Run seed on startup (creates admin user, automation rules, templates)
-  const seedService = app.get(SeedService);
-  await seedService.seedAll();
+  // NOTE: Bootstrap/Seed now runs via BootstrapService onModuleInit
+  // No manual seed call needed - it's automatic and async
 
-  const port = configService.get('PORT') || 8001;
+  const port = process.env.PORT || 8002;
   await app.listen(port, '0.0.0.0');
   
-  logger.log(`✅ CRM Backend running on http://0.0.0.0:${port}`);
-  logger.log(`📚 API available at http://0.0.0.0:${port}/api`);
-  logger.log(`🏥 Health check: http://0.0.0.0:${port}/api/system/health`);
+  const bootTime = Date.now() - startTime;
+  
+  logger.log(`╔════════════════════════════════════════╗`);
+  logger.log(`║       BIBI CRM Ready in ${String(bootTime).padStart(4)}ms         ║`);
+  logger.log(`╠════════════════════════════════════════╣`);
+  logger.log(`║ API:    http://0.0.0.0:${port}/api           ║`);
+  logger.log(`║ Health: http://0.0.0.0:${port}/api/system/health ║`);
+  logger.log(`║ VIN:    http://0.0.0.0:${port}/api/vin/search    ║`);
+  logger.log(`╚════════════════════════════════════════╝`);
 }
 
 bootstrap();
