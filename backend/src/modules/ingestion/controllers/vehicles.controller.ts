@@ -64,7 +64,7 @@ export class VehiclesController {
    */
   @Get()
   @Roles(UserRole.MASTER_ADMIN, UserRole.MODERATOR)
-  async getVehicles(@Query() query: VehicleQueryDto) {
+  async getVehicles(@Query() query: VehicleQueryDto): Promise<any> {
     const {
       page = '1',
       limit = '20',
@@ -200,7 +200,7 @@ export class VehiclesController {
    */
   @Get(':id')
   @Roles(UserRole.MASTER_ADMIN, UserRole.MODERATOR)
-  async getVehicle(@Param('id') id: string) {
+  async getVehicle(@Param('id') id: string): Promise<any> {
     const vehicle = await this.vehicleModel
       .findOne({ $or: [{ id }, { vin: id }], isDeleted: { $ne: true } })
       .select('-__v')

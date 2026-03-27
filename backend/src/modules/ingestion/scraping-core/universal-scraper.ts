@@ -237,6 +237,40 @@ export async function withRetry<T>(
 /**
  * Universal scraper - works with any website
  */
+/**
+ * Get proxy URL from MongoDB
+ */
+async function getProxyFromDb(): Promise<string | null> {
+  try {
+    const { MongoClient } = await import('mongodb');
+    const mongoUrl = process.env.MONGO_URL || 'mongodb://localhost:27017';
+    const dbName = process.env.DB_NAME || 'test_database';
+    
+    const client = new MongoClient(mongoUrl);
+    await client.connect();
+    const db = client.db(dbName);
+    
+    const proxy = await db.collection('system_proxies')
+      .findOne({ enabled: true }, { sort: { priority: 1 } });
+    
+    await client.close();
+    
+    if (proxy) {
+      let proxyUrl = proxy.server;
+      if (proxy.username && proxy.password) {
+        const [proto, rest] = proxyUrl.split('://');
+        proxyUrl = `${proto}://${proxy.username}:${proxy.password}@${rest}`;
+      }
+      console.log(`[Scraper] Using proxy: ${proxy.server}`);
+      return proxyUrl;
+    }
+    return null;
+  } catch (error) {
+    console.log(`[Scraper] Failed to get proxy: ${error}`);
+    return null;
+  }
+}
+
 export async function universalScrape(
   baseUrl: string,
   options: {
@@ -244,6 +278,7 @@ export async function universalScrape(
     pageParam?: string;
     scrollCount?: number;
     waitTime?: number;
+    proxyUrl?: string;
   } = {}
 ): Promise<ScraperResult> {
   const {
@@ -253,10 +288,26 @@ export async function universalScrape(
     waitTime = 2000,
   } = options;
 
+  // Get proxy from DB if not provided
+  const proxyUrl = options.proxyUrl || await getProxyFromDb();
+  
+  const browserArgs = [
+    '--no-sandbox', 
+    '--disable-setuid-sandbox', 
+    '--disable-gpu',
+    '--disable-dev-shm-usage',
+    '--disable-blink-features=AutomationControlled',
+  ];
+  
+  if (proxyUrl) {
+    browserArgs.push(`--proxy-server=${proxyUrl}`);
+    console.log(`[Scraper] Launching with proxy: ${proxyUrl.split('@')[1] || proxyUrl}`);
+  }
+
   const browser = await puppeteer.launch({
     headless: true,
     executablePath: BROWSER_PATH,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
+    args: browserArgs,
   });
 
   const results: any[] = [];
