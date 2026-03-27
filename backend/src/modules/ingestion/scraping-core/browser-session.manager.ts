@@ -51,6 +51,7 @@ export class BrowserSessionManager {
     const possiblePaths = [
       process.env.PUPPETEER_EXECUTABLE_PATH,
       process.env.CHROMIUM_PATH,
+      '/pw-browsers/chromium-1208/chrome-linux/chrome',
       '/root/.cache/ms-playwright/chromium-1208/chrome-linux/chrome',
       '/usr/bin/chromium',
       '/usr/bin/chromium-browser',
@@ -124,8 +125,8 @@ export class BrowserSessionManager {
     // Proxy authentication
     if (this.useProxy && this.proxyConfig) {
       await page.authenticate({
-        username: this.proxyConfig.username,
-        password: this.proxyConfig.password,
+        username: this.proxyConfig.username || '',
+        password: this.proxyConfig.password || '',
       });
     }
 

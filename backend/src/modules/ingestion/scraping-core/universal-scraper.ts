@@ -32,7 +32,7 @@ interface ScraperResult {
   errors: string[];
 }
 
-const BROWSER_PATH = '/root/.cache/ms-playwright/chromium-1208/chrome-linux/chrome';
+const BROWSER_PATH = '/pw-browsers/chromium-1208/chrome-linux/chrome';
 
 /**
  * Attach universal XHR interceptor to page
@@ -57,7 +57,10 @@ export function attachUniversalInterceptor(page: Page): {
       url.includes('facebook') ||
       url.includes('.css') ||
       url.includes('.js') ||
-      url.includes('fonts')
+      url.includes('fonts') ||
+      url.includes('country') ||
+      url.includes('locale') ||
+      url.includes('config')
     ) return;
 
     try {
@@ -98,19 +101,60 @@ export function attachUniversalInterceptor(page: Page): {
 export function detectData(payloads: InterceptedPayload[]): DetectedData | null {
   const candidates: DetectedData[] = [];
 
+  console.log(`[detectData] Processing ${payloads.length} payloads`);
+
   for (const p of payloads) {
     const data = p.data;
     if (!data) continue;
 
+    // Log all URLs for debugging
+    console.log(`[detectData] Payload URL: ${p.url.substring(0, 100)}`);
+
+    // Special handling for Copart search results
+    if (p.url.includes('search-results') || p.url.includes('lotSearch')) {
+      console.log(`[detectData] Found search-results, data keys: ${Object.keys(data).join(', ')}`);
+      console.log(`[detectData] Full data structure: ${JSON.stringify(data).substring(0, 1000)}`);
+      if (data.data?.results?.content) {
+        console.log(`[detectData] Found Copart content: ${data.data.results.content.length} items`);
+        return {
+          url: p.url,
+          size: data.data.results.content.length,
+          sample: data.data.results.content[0],
+          data: data.data.results.content,
+        };
+      }
+      if (data.results?.content) {
+        console.log(`[detectData] Found results.content: ${data.results.content.length} items`);
+        return {
+          url: p.url,
+          size: data.results.content.length,
+          sample: data.results.content[0],
+          data: data.results.content,
+        };
+      }
+      // Try to find any array in data
+      for (const key of Object.keys(data)) {
+        if (Array.isArray(data[key]) && data[key].length > 0) {
+          console.log(`[detectData] Found array at key ${key}: ${data[key].length} items`);
+        }
+      }
+    }
+
     // Check common data array locations
     const possibleArrays = [
       { key: 'data', arr: data.data },
+      { key: 'data.results', arr: data.data?.results },
+      { key: 'data.lotSearchResults', arr: data.data?.lotSearchResults },
+      { key: 'data.lots', arr: data.data?.lots },
       { key: 'rows', arr: data.rows },
       { key: 'list', arr: data.list },
       { key: 'results', arr: data.results },
       { key: 'items', arr: data.items },
       { key: 'content', arr: data.content },
       { key: 'records', arr: data.records },
+      { key: 'lots', arr: data.lots },
+      { key: 'members', arr: data.members },
+      { key: 'searchResults.content', arr: data.searchResults?.content },
       { key: 'root', arr: Array.isArray(data) ? data : null },
     ];
 

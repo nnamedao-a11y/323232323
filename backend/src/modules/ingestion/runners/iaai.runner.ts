@@ -30,6 +30,9 @@ import {
   humanPause,
 } from '../antiblock';
 
+// Scraping - browser-based scraping with XHR interception  
+import { universalScrape } from '../scraping-core';
+
 // Normalizers
 import { normalizeIAAI, IAAIRawItem } from '../normalize/iaai.normalize';
 
@@ -202,11 +205,72 @@ export class IAAIRunner implements OnModuleInit {
     try {
       return await this.fetchViaApi();
     } catch (error) {
-      this.logger.warn(`[IAAIRunner] API fetch failed: ${error.message}`);
+      this.logger.warn(`[IAAIRunner] API fetch failed: ${error.message}, trying browser...`);
     }
 
-    this.logger.warn('[IAAIRunner] No data source configured');
+    // Fallback to browser scraping
+    try {
+      return await this.fetchViaBrowser();
+    } catch (error) {
+      this.logger.warn(`[IAAIRunner] Browser scraping failed: ${error.message}`);
+    }
+
+    this.logger.warn('[IAAIRunner] All data sources failed');
     return [];
+  }
+
+  private async fetchViaBrowser(): Promise<IAAIRawItem[]> {
+    this.logger.log('[IAAIRunner] Starting browser scraping...');
+    
+    const searchUrls = [
+      'https://www.iaai.com/Search?wl=&rnd=123456',
+    ];
+
+    const allItems: IAAIRawItem[] = [];
+
+    for (const url of searchUrls) {
+      try {
+        const result = await universalScrape(url, {
+          maxPages: 3,
+          scrollCount: 5,
+          waitTime: 3000,
+        });
+
+        this.logger.log(`[IAAIRunner] Browser scraped ${result.items.length} items via ${result.method}`);
+        
+        // Transform to IAAIRawItem format
+        for (const item of result.items) {
+          const rawItem: IAAIRawItem = {
+            stockNo: item.stockNo || item.StockNo || item.id,
+            vin: item.vin || item.VIN,
+            vehicleName: item.vehicleName || item.VehicleName || item.title,
+            year: item.year || item.Year,
+            make: item.make || item.Make,
+            model: item.model || item.Model,
+            currentBid: item.currentBid || item.CurrentBid,
+            buyNow: item.buyNow || item.BuyNow,
+            image: item.image || item.Image || item.imageUrl,
+            images: item.images || [],
+            saleDate: item.saleDate || item.SaleDate,
+            branch: item.branch || item.Branch || item.location,
+            primaryDamage: item.primaryDamage || item.PrimaryDamage,
+            secondaryDamage: item.secondaryDamage || item.SecondaryDamage,
+            driveType: item.driveType || item.DriveType,
+            engine: item.engine || item.Engine,
+            transmission: item.transmission || item.Transmission,
+            fuelType: item.fuelType || item.FuelType,
+            odometer: item.odometer || item.Odometer,
+            keys: item.keys || item.Keys,
+            titleType: item.titleType || item.TitleType,
+          };
+          allItems.push(rawItem);
+        }
+      } catch (error) {
+        this.logger.warn(`[IAAIRunner] Failed to scrape ${url}: ${error.message}`);
+      }
+    }
+
+    return allItems;
   }
 
   private async fetchViaApi(): Promise<IAAIRawItem[]> {

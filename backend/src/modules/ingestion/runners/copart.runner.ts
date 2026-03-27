@@ -42,8 +42,8 @@ import { VehicleSource, ProcessingStatus } from '../enums/vehicle.enum';
 import { ActivityAction, ActivityEntityType, ActivitySource } from '../../activity/enums/activity-action.enum';
 import { generateId } from '../../../shared/utils';
 
-// Scraping (optional - for browser-based scraping)
-// import { BrowserSessionManager, universalScrape } from '../scraping-core';
+// Scraping - browser-based scraping with XHR interception
+import { universalScrape } from '../scraping-core';
 
 interface CopartApiResponse {
   data?: {
@@ -226,12 +226,109 @@ export class CopartRunner implements OnModuleInit {
       this.logger.warn(`[CopartRunner] API fetch failed: ${error.message}, trying browser...`);
     }
 
-    // Метод 2: Browser scraping (fallback)
-    // return await this.fetchViaBrowser();
+    // Метод 2: Browser scraping (with XHR interception)
+    try {
+      return await this.fetchViaBrowser();
+    } catch (error) {
+      this.logger.warn(`[CopartRunner] Browser scraping failed: ${error.message}`);
+    }
 
-    // Поки повертаємо пустий масив - потрібна реальна інтеграція
-    this.logger.warn('[CopartRunner] No data source configured');
+    this.logger.warn('[CopartRunner] All data sources failed');
     return [];
+  }
+
+  private async fetchViaBrowser(): Promise<CopartRawItem[]> {
+    this.logger.log('[CopartRunner] Starting browser scraping...');
+    
+    // Copart search URLs - different categories
+    const searchUrls = [
+      'https://www.copart.com/lotSearchResults?free=true&query=&searchCriteria=%7B%22query%22%3A%5B%22*%22%5D%2C%22filter%22%3A%7B%22YEAR%22%3A%5B%222020%20TO%202024%22%5D%7D%2C%22sort%22%3A%5B%22auction_date_type%20desc%22%5D%2C%22page%22%3A0%2C%22size%22%3A100%7D',
+    ];
+
+    const allItems: CopartRawItem[] = [];
+
+    for (const url of searchUrls) {
+      try {
+        const result = await universalScrape(url, {
+          maxPages: 3,
+          scrollCount: 5,
+          waitTime: 3000,
+        });
+
+        this.logger.log(`[CopartRunner] Browser scraped ${result.items.length} items via ${result.method}`);
+        
+        // DEBUG: Log sample item structure
+        if (result.items.length > 0) {
+          const sample = result.items[0];
+          this.logger.log(`[CopartRunner] Sample item keys: ${Object.keys(sample).join(', ')}`);
+          this.logger.log(`[CopartRunner] Sample item: ${JSON.stringify(sample).substring(0, 500)}`);
+        }
+        
+        // Transform to CopartRawItem format - using REAL Copart API field names
+        for (const item of result.items) {
+          // DEBUG: log tims structure
+          this.logger.log(`[CopartRunner] Item tims type: ${typeof item.tims}, value: ${JSON.stringify(item.tims).substring(0, 200)}`);
+          
+          // Process images - tims can be undefined, array, or object
+          let images: string[] = [];
+          if (Array.isArray(item.tims)) {
+            images = item.tims.map((t: any) => t?.full || t).filter(Boolean);
+          } else if (item.tims && typeof item.tims === 'object') {
+            // Handle object format
+            Object.values(item.tims).forEach((v: any) => {
+              if (typeof v === 'string') images.push(v);
+              else if (v?.full) images.push(v.full);
+            });
+          }
+          
+          const rawItem: CopartRawItem = {
+            id: String(item.ln || item.lotNumberStr || ''),
+            lotId: String(item.ln || item.lotNumberStr || ''),
+            ln: String(item.ln || ''),
+            vin: item.fv || '',  // fv = full VIN
+            fv: item.fv || '',
+            title: item.ltd || item.lm || `${item.lcy || ''} ${item.mkn || ''} ${item.lm || ''}`.trim(),
+            year: item.lcy,  // lcy = lot year
+            lcy: item.lcy,
+            make: item.mkn,  // mkn = make name
+            mkn: item.mkn,
+            model: item.lm,  // lm = model
+            mdn: item.lm,
+            currentBid: item.obc || item.dynamicLotDetails?.currentBid,  // obc = current bid
+            obc: item.obc,
+            buyItNowPrice: item.bnp,  // bnp = buy now price
+            bnp: item.bnp,
+            imageUrl: images[0] || '',
+            images: images,
+            tims: item.tims,
+            saleDate: item.ad,  // ad = auction date
+            location: item.yn || item.locState || '',  // yn = yard name
+            yn: item.yn,
+            damageType: item.dd || item.td || '',  // dd = damage description
+            dd: item.dd,
+            pdd: item.td,
+            driveType: item.drv,  // drv = drive type
+            dtc: item.drv,
+            engine: item.egn,  // egn = engine
+            ey: item.egn,
+            transmission: item.htsmn || item.tmtp,  // htsmn = transmission
+            tsmn: item.htsmn,
+            fuelType: item.ft,  // ft = fuel type
+            odometer: item.orr,  // orr = odometer reading
+            odo: item.orr,
+            keys: item.hk,  // hk = has keys
+            color: item.clr,
+            clr: item.clr,
+            highlights: item.ld,  // ld = lot description
+          };
+          allItems.push(rawItem);
+        }
+      } catch (error) {
+        this.logger.warn(`[CopartRunner] Failed to scrape ${url}: ${error.message}`);
+      }
+    }
+
+    return allItems;
   }
 
   private async fetchViaApi(): Promise<CopartRawItem[]> {
@@ -295,6 +392,10 @@ export class CopartRunner implements OnModuleInit {
   private async processItem(item: CopartRawItem): Promise<void> {
     const rawId = generateId();
 
+    // Debug log incoming item
+    const itemVin = item.vin || item.fv || item.vehicle?.vin || 'NO_VIN';
+    this.logger.log(`[CopartRunner] Processing item: VIN=${itemVin}, lotId=${item.lotId || item.ln || item.id}`);
+
     // 1. Save raw data
     await this.saveRawData(rawId, item);
 
@@ -302,24 +403,35 @@ export class CopartRunner implements OnModuleInit {
     const normalized = normalizeCopart(item);
 
     if (!normalized) {
+      this.logger.warn(`[CopartRunner] Normalization failed for VIN=${itemVin} (invalid or missing VIN)`);
       await this.updateRawStatus(rawId, ProcessingStatus.FAILED, 'Normalization failed (invalid VIN)');
       return;
     }
 
-    // 3. Upsert vehicle (dedup by VIN)
-    const result = await this.vehicleService.upsertByVin(normalized);
+    this.logger.log(`[CopartRunner] Normalized successfully: VIN=${normalized.vin}`);
 
-    // 4. Update raw status
-    await this.updateRawStatus(rawId, ProcessingStatus.PROCESSED, undefined, result.id);
+    // 3. Upsert vehicle (dedup by VIN)
+    let vehicleResult: { id: string; isNew: boolean };
+    try {
+      vehicleResult = await this.vehicleService.upsertByVin(normalized);
+      this.logger.log(`[CopartRunner] Vehicle ${vehicleResult.isNew ? 'CREATED' : 'UPDATED'}: ${vehicleResult.id} (VIN: ${normalized.vin})`);
+
+      // 4. Update raw status
+      await this.updateRawStatus(rawId, ProcessingStatus.PROCESSED, undefined, vehicleResult.id);
+    } catch (error) {
+      this.logger.error(`[CopartRunner] Failed to save vehicle VIN=${normalized.vin}: ${error.message}`);
+      await this.updateRawStatus(rawId, ProcessingStatus.FAILED, error.message);
+      throw error;
+    }
 
     // 5. Log activity
     this.activityService.logAsync({
       userId: 'system',
       userRole: 'system',
       userName: 'Copart Parser',
-      action: result.isNew ? ActivityAction.VEHICLE_CREATED : ActivityAction.VEHICLE_UPDATED,
+      action: vehicleResult.isNew ? ActivityAction.VEHICLE_CREATED : ActivityAction.VEHICLE_UPDATED,
       entityType: ActivityEntityType.VEHICLE,
-      entityId: result.id,
+      entityId: vehicleResult.id,
       meta: {
         vin: normalized.vin,
         source: 'copart',

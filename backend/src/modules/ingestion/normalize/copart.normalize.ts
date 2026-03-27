@@ -32,7 +32,7 @@ export interface CopartRawItem {
   keys?: string; // has keys
   starts?: string; // starts/runs
   imgs?: string[]; // images
-  tims?: string[]; // thumbnail images
+  tims?: Array<string | { full?: string; img?: string }>; // thumbnail images
   dynamicImages?: { full: string[] };
   imageUrl?: string;
   imageUrls?: string[];
@@ -161,11 +161,11 @@ export function normalizeCopart(raw: CopartRawItem): NormalizedVehicle | null {
 }
 
 function extractVin(raw: CopartRawItem): string {
-  return raw.vin || raw.fv || raw.vehicle?.vin || '';
+  return raw.fv || raw.vin || raw.vehicle?.vin || '';
 }
 
 function extractExternalId(raw: CopartRawItem): string {
-  return String(raw.id || raw.lotId || raw.ln || '');
+  return String(raw.ln || raw.id || raw.lotId || '');
 }
 
 function extractTitle(raw: CopartRawItem): string {
@@ -181,12 +181,24 @@ function extractTitle(raw: CopartRawItem): string {
 }
 
 function extractPrice(raw: CopartRawItem): number {
-  return raw.hb || raw.obc || raw.bnp || raw.la || 0;
+  return raw.obc || raw.hb || raw.bnp || raw.la || 0;
 }
 
 function extractImages(raw: CopartRawItem): string[] {
   const images: string[] = [];
   
+  // Copart tims array can contain objects with 'full' key or strings
+  if (raw.tims?.length) {
+    for (const t of raw.tims) {
+      if (typeof t === 'string') {
+        images.push(t);
+      } else if (t?.full) {
+        images.push(t.full);
+      } else if (t?.img) {
+        images.push(t.img);
+      }
+    }
+  }
   if (raw.imgs?.length) {
     images.push(...raw.imgs);
   }
@@ -198,9 +210,6 @@ function extractImages(raw: CopartRawItem): string[] {
   }
   if (raw.imageUrl) {
     images.push(raw.imageUrl);
-  }
-  if (raw.tims?.length && images.length === 0) {
-    images.push(...raw.tims);
   }
   
   return [...new Set(images)]; // Dedupe
@@ -220,8 +229,10 @@ function extractConditionGrade(raw: CopartRawItem): string | undefined {
 
 function isValidVin(vin: string): boolean {
   if (!vin) return false;
-  const cleanVin = vin.replace(/[^A-HJ-NPR-Z0-9]/gi, '').toUpperCase();
-  return cleanVin.length === 17;
+  const cleanVin = vin.replace(/[^A-HJ-NPR-Z0-9*]/gi, '').toUpperCase();
+  // Accept VINs with masked characters (***) or full 17 chars
+  // Copart masks last 6 characters for public API
+  return cleanVin.length >= 11 && cleanVin.length <= 17;
 }
 
 /**
