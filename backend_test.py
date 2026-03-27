@@ -12,7 +12,7 @@ from datetime import datetime
 import uuid
 
 class CRMAPITester:
-    def __init__(self, base_url="https://a11y-testing.preview.emergentagent.com"):
+    def __init__(self, base_url="https://dev-continue-27.preview.emergentagent.com"):
         self.base_url = base_url
         self.token = None
         self.tests_run = 0
@@ -242,6 +242,105 @@ class CRMAPITester:
         else:
             self.log_result("VIN Search - Web Fallback", False, status, f"Request failed: {data}")
 
+    def test_public_vin_endpoints(self):
+        """Test Public VIN endpoints (no auth required)"""
+        print("\n🔍 Testing Public VIN Endpoints...")
+        
+        # Temporarily remove auth token for public endpoints
+        original_token = self.token
+        self.token = None
+        
+        # Test 1: Public VIN search with query parameter
+        print("   Testing public VIN search with query parameter...")
+        test_vin = "1HGBH41JXMN109186"  # Valid 17-char VIN
+        success, status, data = self.make_request('GET', f'public/vin/search?vin={test_vin}', expected_status=200)
+        
+        if success:
+            if 'vin' in data or 'success' in data:
+                self.log_result("Public VIN Search (Query)", True, status)
+            else:
+                self.log_result("Public VIN Search (Query)", False, status, 
+                              f"Expected vin or success field, got: {list(data.keys())}")
+        else:
+            self.log_result("Public VIN Search (Query)", False, status, f"Request failed: {data}")
+        
+        # Test 2: Public VIN search with path parameter (SEO-friendly)
+        print("   Testing public VIN search with path parameter...")
+        success, status, data = self.make_request('GET', f'public/vin/{test_vin}', expected_status=200)
+        
+        if success:
+            if 'vin' in data or 'success' in data:
+                self.log_result("Public VIN Search (Path)", True, status)
+            else:
+                self.log_result("Public VIN Search (Path)", False, status, 
+                              f"Expected vin or success field, got: {list(data.keys())}")
+        else:
+            self.log_result("Public VIN Search (Path)", False, status, f"Request failed: {data}")
+        
+        # Test 3: Public VIN search with invalid VIN (should return not found)
+        print("   Testing public VIN search with invalid VIN...")
+        invalid_vin = "INVALID123"
+        success, status, data = self.make_request('GET', f'public/vin/search?vin={invalid_vin}', expected_status=200)
+        
+        if success:
+            if data.get('success') == False or 'message' in data:
+                self.log_result("Public VIN Search (Invalid)", True, status)
+            else:
+                self.log_result("Public VIN Search (Invalid)", False, status, 
+                              f"Expected success=false or message, got: {data}")
+        else:
+            self.log_result("Public VIN Search (Invalid)", False, status, f"Request failed: {data}")
+        
+        # Test 4: Public VIN lead creation
+        print("   Testing public VIN lead creation...")
+        lead_data = {
+            "vin": test_vin,
+            "firstName": "Test",
+            "lastName": "User",
+            "email": "test@example.com",
+            "phone": "+380123456789",
+            "message": "Test lead from API testing"
+        }
+        
+        success, status, data = self.make_request('POST', 'public/vin/lead', lead_data, expected_status=201)
+        
+        if success:
+            if data.get('success') and 'leadId' in data:
+                self.log_result("Public VIN Lead Creation", True, status)
+                print(f"   Created lead ID: {data.get('leadId')}")
+            else:
+                self.log_result("Public VIN Lead Creation", False, status, 
+                              f"Expected success=true and leadId, got: {data}")
+        else:
+            # Try with 200 status code as well
+            success, status, data = self.make_request('POST', 'public/vin/lead', lead_data, expected_status=200)
+            if success and data.get('success'):
+                self.log_result("Public VIN Lead Creation", True, status)
+                print(f"   Created lead ID: {data.get('leadId')}")
+            else:
+                self.log_result("Public VIN Lead Creation", False, status, f"Request failed: {data}")
+        
+        # Test 5: Public VIN lead creation with invalid data
+        print("   Testing public VIN lead creation with invalid data...")
+        invalid_lead_data = {
+            "vin": "INVALID",
+            "firstName": "",
+            "lastName": "",
+            "email": "invalid-email",
+            "phone": "",
+        }
+        
+        success, status, data = self.make_request('POST', 'public/vin/lead', invalid_lead_data, expected_status=400)
+        
+        if success or (status in [400, 422] and not success):
+            self.log_result("Public VIN Lead Creation (Invalid)", True, status)
+        else:
+            self.log_result("Public VIN Lead Creation (Invalid)", False, status, 
+                          f"Expected 400/422 status for invalid data, got: {status}")
+        
+        # Restore auth token
+        self.token = original_token
+
     def test_additional_endpoints(self):
         """Test additional important endpoints"""
         print("\n🔍 Testing Additional Endpoints...")
@@ -286,6 +385,9 @@ class CRMAPITester:
         
         # Test VIN Intelligence Engine
         self.test_vin_search_endpoints()
+        
+        # Test Public VIN Endpoints (main focus)
+        self.test_public_vin_endpoints()
         
         # Test additional endpoints
         self.test_additional_endpoints()

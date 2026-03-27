@@ -19,6 +19,7 @@ import ParserLogs from './pages/ParserLogs';
 import ParserSettings from './pages/ParserSettings';
 import Vehicles from './pages/Vehicles';
 import VinSearch from './pages/VinSearch';
+import PublicVinSearch from './pages/PublicVinSearch';
 import Layout from './components/Layout';
 import './App.css';
 
@@ -123,6 +124,12 @@ function App() {
       <AuthProvider>
         <Toaster position="top-right" richColors />
         <Routes>
+          {/* Public VIN Search - SEO-friendly routes */}
+          <Route path="/vin-check" element={<PublicVinSearch />} />
+          <Route path="/vin-check/:vin" element={<PublicVinSearch />} />
+          <Route path="/public/vin" element={<PublicVinSearch />} />
+          <Route path="/public/vin/:vin" element={<PublicVinSearch />} />
+          
           <Route path="/login" element={<Login />} />
           <Route path="/" element={
             <ProtectedRoute>

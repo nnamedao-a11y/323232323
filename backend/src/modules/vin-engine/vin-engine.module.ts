@@ -2,10 +2,11 @@
  * VIN Engine Module
  * 
  * VIN Intelligence Engine for 100% coverage
- * Search → Filter → Extract → Merge → Score → Cache
+ * Multi-source provider architecture:
+ * DB → Cache → Aggregators → Competitors → Web Search → Merge → Score
  */
 
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Vehicle, VehicleSchema } from '../ingestion/schemas/vehicle.schema';
 import { VinCache, VinCacheSchema } from './vin-cache.service';
@@ -16,7 +17,18 @@ import { VinMergeService } from './vin-merge.service';
 import { VinCacheService } from './vin-cache.service';
 import { VinSearchService } from './vin-search.service';
 import { VinSearchController } from './vin-search.controller';
+import { PublicVinController } from './public-vin.controller';
 import { PipelineModule } from '../pipeline/pipeline.module';
+import { LeadsModule } from '../leads/leads.module';
+
+// New provider-based architecture
+import { SourceWeightService } from './providers/source-weight.service';
+import { VinCandidateScoringService } from './providers/vin-candidate-scoring.service';
+import { ResultMergeService } from './providers/result-merge.service';
+import { DbVinSearchProvider } from './providers/db.provider';
+import { AggregatorSearchProvider } from './providers/aggregator-search.provider';
+import { CompetitorSearchProvider } from './providers/competitor-search.provider';
+import { VinSearchOrchestratorService } from './providers/vin-search-orchestrator.service';
 
 @Module({
   imports: [
@@ -25,16 +37,27 @@ import { PipelineModule } from '../pipeline/pipeline.module';
       { name: VinCache.name, schema: VinCacheSchema },
     ]),
     PipelineModule,
+    forwardRef(() => LeadsModule),
   ],
-  controllers: [VinSearchController],
+  controllers: [VinSearchController, PublicVinController],
   providers: [
+    // Existing services
     SearchProviderService,
     UrlFilterService,
     ExtractorService,
     VinMergeService,
     VinCacheService,
     VinSearchService,
+    
+    // New provider-based services
+    SourceWeightService,
+    VinCandidateScoringService,
+    ResultMergeService,
+    DbVinSearchProvider,
+    AggregatorSearchProvider,
+    CompetitorSearchProvider,
+    VinSearchOrchestratorService,
   ],
-  exports: [VinSearchService, VinCacheService],
+  exports: [VinSearchService, VinCacheService, VinSearchOrchestratorService],
 })
 export class VinEngineModule {}
