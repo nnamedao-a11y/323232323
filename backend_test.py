@@ -188,6 +188,60 @@ class CRMAPITester:
             self.log_result("Proxies List", False, status, f"Request failed: {data}")
             return False
 
+    def test_vin_search_endpoints(self):
+        """Test VIN Intelligence Engine endpoints"""
+        print("\n🔍 Testing VIN Intelligence Engine...")
+        
+        # Test VIN search for Honda (should be in database)
+        print("   Testing Honda VIN search...")
+        success, status, data = self.make_request('GET', 'vin/search?vin=1HGBH41JXMN109186', expected_status=200)
+        if success:
+            if data.get('success') and data.get('source') in ['database', 'cache', 'web_search']:
+                self.log_result("VIN Search - Honda (DB)", True, status)
+            else:
+                self.log_result("VIN Search - Honda (DB)", False, status, 
+                              f"Expected success=true, got: {data.get('success')}, source: {data.get('source')}")
+        else:
+            self.log_result("VIN Search - Honda (DB)", False, status, f"Request failed: {data}")
+        
+        # Test VIN search for Mercedes (should be in database)
+        print("   Testing Mercedes VIN search...")
+        success, status, data = self.make_request('GET', 'vin/search?vin=WVWZZZ3CZWE123456', expected_status=200)
+        if success:
+            if data.get('success') and data.get('source') in ['database', 'cache', 'web_search']:
+                self.log_result("VIN Search - Mercedes (DB)", True, status)
+            else:
+                self.log_result("VIN Search - Mercedes (DB)", False, status, 
+                              f"Expected success=true, got: {data.get('success')}, source: {data.get('source')}")
+        else:
+            self.log_result("VIN Search - Mercedes (DB)", False, status, f"Request failed: {data}")
+        
+        # Test VIN search for Tesla (should be in database)
+        print("   Testing Tesla VIN search...")
+        success, status, data = self.make_request('GET', 'vin/5YJSA1E26MF123789', expected_status=200)
+        if success:
+            if data.get('success') and data.get('source') in ['database', 'cache', 'web_search']:
+                self.log_result("VIN Search - Tesla (DB)", True, status)
+            else:
+                self.log_result("VIN Search - Tesla (DB)", False, status, 
+                              f"Expected success=true, got: {data.get('success')}, source: {data.get('source')}")
+        else:
+            self.log_result("VIN Search - Tesla (DB)", False, status, f"Request failed: {data}")
+        
+        # Test VIN search with web fallback (VIN not in database)
+        print("   Testing VIN web fallback...")
+        success, status, data = self.make_request('GET', 'vin/search?vin=5YJSA1E26MF000000', expected_status=200)
+        if success:
+            # This should either find via web search or return not found
+            expected_sources = ['web_search', 'not_found', 'cache']
+            if data.get('source') in expected_sources:
+                self.log_result("VIN Search - Web Fallback", True, status)
+            else:
+                self.log_result("VIN Search - Web Fallback", False, status, 
+                              f"Expected source in {expected_sources}, got: {data.get('source')}")
+        else:
+            self.log_result("VIN Search - Web Fallback", False, status, f"Request failed: {data}")
+
     def test_additional_endpoints(self):
         """Test additional important endpoints"""
         print("\n🔍 Testing Additional Endpoints...")
@@ -229,6 +283,9 @@ class CRMAPITester:
         self.test_vehicles_list()
         self.test_vehicles_stats()
         self.test_proxies_list()
+        
+        # Test VIN Intelligence Engine
+        self.test_vin_search_endpoints()
         
         # Test additional endpoints
         self.test_additional_endpoints()

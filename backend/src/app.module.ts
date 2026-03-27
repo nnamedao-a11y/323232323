@@ -30,6 +30,8 @@ import { DocumentsModule } from './modules/documents/documents.module';
 import { ActivityModule } from './modules/activity/activity.module';
 import { IngestionModule } from './modules/ingestion/ingestion.module';
 import { IngestionAdminModule } from './modules/ingestion/admin/ingestion-admin.module';
+import { PipelineModule } from './modules/pipeline/pipeline.module';
+import { VinEngineModule } from './modules/vin-engine/vin-engine.module';
 
 @Module({
   imports: [
@@ -74,6 +76,8 @@ import { IngestionAdminModule } from './modules/ingestion/admin/ingestion-admin.
     ActivityModule,
     IngestionModule,
     IngestionAdminModule,
+    PipelineModule,
+    VinEngineModule,
   ],
 })
 export class AppModule {}

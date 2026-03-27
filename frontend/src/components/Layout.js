@@ -15,7 +15,8 @@ import {
   FileText,
   Globe,
   Database,
-  Car
+  Car,
+  MagnifyingGlass
 } from '@phosphor-icons/react';
 
 const Layout = () => {
@@ -43,12 +44,13 @@ const Layout = () => {
   // Add parser control for master_admin and moderator
   const parserNavItem = { path: '/parser', icon: Database, label: 'Парсер' };
   const vehiclesNavItem = { path: '/vehicles', icon: Car, label: 'Авто' };
+  const vinSearchNavItem = { path: '/vin', icon: MagnifyingGlass, label: 'VIN Пошук' };
   
   // Add extra items for master_admin only
   const navItems = user?.role === 'master_admin' 
-    ? [...baseNavItems, vehiclesNavItem, parserNavItem]
+    ? [...baseNavItems, vehiclesNavItem, vinSearchNavItem, parserNavItem]
     : user?.role === 'moderator'
-    ? [...baseNavItems, vehiclesNavItem, parserNavItem]
+    ? [...baseNavItems, vehiclesNavItem, vinSearchNavItem, parserNavItem]
     : baseNavItems;
 
   const roleLabels = {
